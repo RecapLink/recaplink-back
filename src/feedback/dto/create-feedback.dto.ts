@@ -3,7 +3,7 @@ import { IsString, IsInt, IsOptional, Min, Max, IsArray, IsIn } from 'class-vali
 export class CreateFeedbackDto {
   @IsOptional()
   @IsString()
-  @IsIn(['en', 'fr', 'wo'])
+  @IsIn(['ar', 'fr', 'wo'])
   language?: string;
 
   @IsOptional()
