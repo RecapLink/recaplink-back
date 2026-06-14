@@ -55,6 +55,7 @@ export class FeedbackService {
         wouldRecommendDistribution: {},
         languageDistribution: {},
         recentTrend: this.emptyTrend(),
+        comments: [],
       };
     }
 
@@ -84,6 +85,15 @@ export class FeedbackService {
       wouldRecommendDistribution: this.countField(all, 'wouldRecommend'),
       languageDistribution: this.countField(all, 'language'),
       recentTrend: this.buildTrend(all),
+      comments: all
+        .filter((i) => i.comment && String(i.comment).trim())
+        .map((i) => ({
+          text: String(i.comment).trim(),
+          lang: i.language || 'fr',
+          satisfaction: i.satisfaction || null,
+          date: i.createdAt,
+        }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     };
   }
 

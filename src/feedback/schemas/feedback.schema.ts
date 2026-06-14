@@ -82,6 +82,9 @@ export class Feedback {
 
   @Prop()
   heardFrom: string;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const FeedbackSchema = SchemaFactory.createForClass(Feedback);
