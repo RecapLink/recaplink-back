@@ -19,6 +19,11 @@ export class FeedbackService {
     return this.feedbackModel.find().sort({ createdAt: -1 }).exec();
   }
 
+  async resetAll(): Promise<{ deleted: number }> {
+    const result = await this.feedbackModel.deleteMany({}).exec();
+    return { deleted: result.deletedCount };
+  }
+
   async getStats() {
     const all = await this.feedbackModel.find().lean().exec();
     const total = all.length;

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body } from '@nestjs/common';
 import { FeedbackService } from './feedback.service';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
 
@@ -19,5 +19,10 @@ export class FeedbackController {
   @Get()
   findAll() {
     return this.feedbackService.findAll();
+  }
+
+  @Delete('reset')
+  resetAll() {
+    return this.feedbackService.resetAll();
   }
 }
