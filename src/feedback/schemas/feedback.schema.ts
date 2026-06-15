@@ -70,6 +70,9 @@ export class Feedback {
   @Prop()
   comment: string;
 
+  @Prop()
+  offerPricePreference: string; // show_price | no_price | both_options
+
   // ── Legacy fields (kept for backward compatibility) ───────────────
   @Prop()
   profile: string;

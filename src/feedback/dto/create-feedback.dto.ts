@@ -64,6 +64,9 @@ export class CreateFeedbackDto {
   @IsOptional() @IsString() @IsIn(['definitely', 'probably', 'maybe', 'no'])
   wouldRecommend?: string;
 
+  @IsOptional() @IsString() @IsIn(['show_price', 'no_price', 'both_options'])
+  offerPricePreference?: string;
+
   @IsOptional() @IsString()
   comment?: string;
 
