@@ -10,6 +10,15 @@ import jwtConfig from './config/jwt.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { FilesModule } from './modules/files/files.module';
+import { OffersModule } from './modules/offers/offers.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { KnowledgeModule } from './modules/knowledge/knowledge.module';
+import { MessagingModule } from './modules/conversations/messaging.module';
+import { BadgesModule } from './modules/badges/badges.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { AnalyticsModule } from './modules/stats/analytics.module';
+import { ChatbotModule } from './modules/chatbot/chatbot.module';
 
 @Module({
   imports: [
@@ -41,6 +50,15 @@ import { FeedbackModule } from './feedback/feedback.module';
     AuthModule,
     UsersModule,
     FeedbackModule,
+    FilesModule,
+    OffersModule,
+    NotificationsModule,
+    KnowledgeModule,
+    MessagingModule,
+    BadgesModule,
+    ReportsModule,
+    AnalyticsModule,
+    ChatbotModule,
   ],
   providers: [
     {
