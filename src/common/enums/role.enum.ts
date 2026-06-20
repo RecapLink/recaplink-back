@@ -3,4 +3,5 @@ export enum Role {
   RECYCLEUR = 'recycleur',
   VENDEUR_PLASTIQUE = 'vendeur_plastique',
   ADMIN = 'admin',
+  SUPER_ADMIN = 'super_admin',
 }

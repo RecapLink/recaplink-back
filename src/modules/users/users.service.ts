@@ -66,7 +66,7 @@ export class UsersService {
     requesterId: string,
     requesterRole: Role,
   ): Promise<UserDocument> {
-    if (requesterId !== id && requesterRole !== Role.ADMIN) {
+    if (requesterId !== id && requesterRole !== Role.ADMIN && requesterRole !== Role.SUPER_ADMIN) {
       throw new ForbiddenException('Cannot update another user');
     }
     const user = await this.usersRepo.updateById(id, { $set: dto });
