@@ -3,15 +3,19 @@ import {
   Post,
   Get,
   Body,
+  Param,
   Res,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -78,5 +82,36 @@ export class AuthController {
   @Get('me')
   getMe(@CurrentUser('sub') userId: string) {
     return this.authService.getMe(userId);
+  }
+
+  // ── Password Reset ─────────────────────────────────────────────────────────
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Post('resend-reset-email')
+  @HttpCode(HttpStatus.OK)
+  resendResetEmail(@Body() dto: ForgotPasswordDto) {
+    return this.authService.resendResetEmail(dto.email);
+  }
+
+  @Public()
+  @Get('validate-reset-token/:token')
+  validateResetToken(@Param('token') token: string) {
+    return this.authService.validateResetToken(token);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }

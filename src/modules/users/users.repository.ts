@@ -51,4 +51,11 @@ export class UsersRepository {
   async deleteById(id: string | Types.ObjectId): Promise<void> {
     await this.userModel.findByIdAndDelete(id).exec();
   }
+
+  async findByResetToken(hashedToken: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: new Date() },
+    }).exec();
+  }
 }

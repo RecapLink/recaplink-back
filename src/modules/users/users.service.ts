@@ -107,4 +107,32 @@ export class UsersService {
     if (!user) throw new NotFoundException('User not found');
     await this.usersRepo.deleteById(id);
   }
+
+  async findByResetToken(hashedToken: string): Promise<UserDocument | null> {
+    return this.usersRepo.findByResetToken(hashedToken);
+  }
+
+  async setResetToken(
+    id: string | Types.ObjectId,
+    hashedToken: string,
+    expires: Date,
+  ): Promise<void> {
+    await this.usersRepo.updateById(id, {
+      $set: { passwordResetToken: hashedToken, passwordResetExpires: expires },
+    });
+  }
+
+  async clearResetToken(id: string | Types.ObjectId): Promise<void> {
+    await this.usersRepo.updateById(id, {
+      $unset: { passwordResetToken: '', passwordResetExpires: '' },
+    });
+  }
+
+  async updatePassword(id: string | Types.ObjectId, newPassword: string): Promise<void> {
+    const hash = await bcrypt.hash(newPassword, 10);
+    await this.usersRepo.updateById(id, {
+      $set: { password: hash },
+      $unset: { refreshTokenHash: '' },
+    });
+  }
 }
