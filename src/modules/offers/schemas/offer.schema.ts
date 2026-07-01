@@ -9,26 +9,37 @@ class OfferLocation {
   @Prop({ required: true }) city: string;
   @Prop({ required: true }) zone: string;
   @Prop({ type: [Number], default: [] }) coordinates: number[];
+  @Prop() country?: string;
+  @Prop() address?: string;
+  @Prop() postalCode?: string;
 }
 
 @Schema({ timestamps: true })
 export class Offer {
   @Prop({ required: true, unique: true }) refCode: string;
   @Prop({ required: true }) title: string;
-  @Prop() description: string;
+  @Prop() description?: string;
   @Prop({ required: true, enum: PlasticType }) plasticType: PlasticType;
+  @Prop() category?: string;
   @Prop({ default: 0 }) quantityKg: number;
   @Prop({ default: 0 }) quantityPiece: number;
+  @Prop({ default: 'kg' }) unit: string;
   @Prop({ default: 0 }) pricePerKg: number;
   @Prop({ default: false }) isFree: boolean;
   @Prop({ type: OfferLocation, required: true }) location: OfferLocation;
   @Prop({ type: [String], default: [] }) images: string[];
+  @Prop() voiceUrl?: string;
+  @Prop({ default: 0 }) voiceDuration: number;
   @Prop({ enum: OfferStatus, default: OfferStatus.ACTIVE }) status: OfferStatus;
-  @Prop() availability: string;
+  @Prop() availability?: string;
+  @Prop() recyclingCondition?: string;
+  @Prop() collectionMethod?: string;
+  @Prop() packaging?: string;
+  @Prop() notes?: string;
   @Prop({ type: Types.ObjectId, ref: 'User', required: true }) owner: Types.ObjectId;
   @Prop({ default: 0 }) viewCount: number;
   @Prop({ default: 0 }) messageCount: number;
-  @Prop() expiresAt: Date;
+  @Prop() expiresAt?: Date;
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);

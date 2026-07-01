@@ -12,18 +12,44 @@ export class FilesService {
     });
   }
 
-  async uploadFile(file: Express.Multer.File, folder = 'recaplink'): Promise<{ url: string; publicId: string }> {
+  async uploadFile(
+    file: Express.Multer.File,
+    folder = 'recaplink',
+  ): Promise<{ url: string; publicId: string }> {
     if (!file) throw new BadRequestException('No file provided');
 
     return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
+      const stream = cloudinary.uploader.upload_stream(
         { folder, resource_type: 'image', quality: 'auto' },
         (error, result) => {
           if (error) reject(new BadRequestException(error.message));
           else resolve({ url: result.secure_url, publicId: result.public_id });
         },
       );
-      uploadStream.end(file.buffer);
+      stream.end(file.buffer);
+    });
+  }
+
+  async uploadVoice(
+    file: Express.Multer.File,
+    folder = 'recaplink/voice',
+  ): Promise<{ url: string; publicId: string; duration: number }> {
+    if (!file) throw new BadRequestException('No file provided');
+
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder, resource_type: 'video' },
+        (error, result) => {
+          if (error) reject(new BadRequestException(error.message));
+          else
+            resolve({
+              url: result.secure_url,
+              publicId: result.public_id,
+              duration: Math.round((result as any).duration ?? 0),
+            });
+        },
+      );
+      stream.end(file.buffer);
     });
   }
 

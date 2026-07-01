@@ -59,11 +59,13 @@ export class OffersService {
   async create(dto: CreateOfferDto, userId: string): Promise<OfferDocument> {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
+    const { status, ...rest } = dto;
     return this.model.create({
-      ...dto,
+      ...rest,
       refCode: generateRef(),
       owner: new Types.ObjectId(userId),
       expiresAt,
+      ...(status && { status }),
     });
   }
 
