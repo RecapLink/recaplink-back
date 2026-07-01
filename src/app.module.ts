@@ -19,6 +19,7 @@ import { BadgesModule } from './modules/badges/badges.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { AnalyticsModule } from './modules/stats/analytics.module';
 import { ChatbotModule } from './modules/chatbot/chatbot.module';
+import { SiteSettingsModule } from './modules/site-settings/site-settings.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { ChatbotModule } from './modules/chatbot/chatbot.module';
     ReportsModule,
     AnalyticsModule,
     ChatbotModule,
+    SiteSettingsModule,
   ],
   providers: [
     {
