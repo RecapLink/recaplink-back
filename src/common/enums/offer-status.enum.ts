@@ -4,4 +4,5 @@ export enum OfferStatus {
   VERIFIED = 'verified',
   CLOSED = 'closed',
   REPORTED = 'reported',
+  SUSPENDED = 'suspended',
 }

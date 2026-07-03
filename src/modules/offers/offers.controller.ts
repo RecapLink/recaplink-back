@@ -20,6 +20,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Role } from '../../common/enums/role.enum';
+import { OfferStatus } from '../../common/enums/offer-status.enum';
 
 @ApiTags('Offers')
 @ApiBearerAuth('access-token')
@@ -155,6 +156,14 @@ export class OffersController {
   @Patch(':id/verify')
   verify(@Param('id') id: string) {
     return this.offersService.verify(id);
+  }
+
+  @ApiOperation({ summary: 'Update offer status — suspend, report, reactivate… (admin)' })
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Patch(':id/status')
+  updateStatus(@Param('id') id: string, @Body('status') status: OfferStatus) {
+    return this.offersService.updateStatus(id, status);
   }
 
   @ApiOperation({ summary: 'Close an offer' })
