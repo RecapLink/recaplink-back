@@ -154,16 +154,16 @@ export class OffersController {
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @Patch(':id/verify')
-  verify(@Param('id') id: string) {
-    return this.offersService.verify(id);
+  verify(@Param('id') id: string, @CurrentUser('sub') adminId: string) {
+    return this.offersService.verify(id, adminId);
   }
 
   @ApiOperation({ summary: 'Update offer status — suspend, report, reactivate… (admin)' })
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body('status') status: OfferStatus) {
-    return this.offersService.updateStatus(id, status);
+  updateStatus(@Param('id') id: string, @Body('status') status: OfferStatus, @CurrentUser('sub') adminId: string) {
+    return this.offersService.updateStatus(id, status, adminId);
   }
 
   @ApiOperation({ summary: 'Close an offer' })

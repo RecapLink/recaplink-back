@@ -8,20 +8,35 @@ export class Notification {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   recipient: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   type: string;
+
+  @Prop({ required: true, index: true })
+  category: string;
 
   @Prop({ required: true })
   title: string;
 
   @Prop({ required: true })
-  body: string;
+  message: string;
+
+  @Prop()
+  icon?: string;
+
+  @Prop()
+  color?: string;
 
   @Prop({ default: '' })
   link: string;
 
   @Prop({ default: false })
   isRead: boolean;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  createdBy?: Types.ObjectId;
+
+  @Prop({ type: Object })
+  metadata?: Record<string, unknown>;
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);

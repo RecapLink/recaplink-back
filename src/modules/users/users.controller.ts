@@ -58,14 +58,15 @@ export class UsersController {
   updateStatus(
     @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
     @Body('status') status: UserStatus,
+    @CurrentUser('sub') adminId: string,
   ) {
-    return this.usersService.updateStatus(id.toString(), status);
+    return this.usersService.updateStatus(id.toString(), status, adminId);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
-    return this.usersService.remove(id.toString());
+  remove(@Param('id', ParseObjectIdPipe) id: Types.ObjectId, @CurrentUser('sub') adminId: string) {
+    return this.usersService.remove(id.toString(), adminId);
   }
 }

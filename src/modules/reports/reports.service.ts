@@ -27,9 +27,11 @@ export class ReportsService {
     await this.notificationsService.notifyAdmins({
       type: 'report',
       title: 'Nouveau signalement',
-      body: `Signalement sur ${type} : ${reason}`,
+      message: `Signalement sur ${type} : ${reason}`,
       link: '/admin/offers',
+      createdBy: reporterId,
       prefKey: 'newSignalement',
+      metadata: { targetId, reportType: type },
     });
 
     return report;

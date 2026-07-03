@@ -3,9 +3,13 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Knowledge, KnowledgeSchema } from './schemas/knowledge.schema';
 import { KnowledgeService } from './knowledge.service';
 import { KnowledgeController } from './knowledge.controller';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Knowledge.name, schema: KnowledgeSchema }])],
+  imports: [
+    MongooseModule.forFeature([{ name: Knowledge.name, schema: KnowledgeSchema }]),
+    NotificationsModule,
+  ],
   controllers: [KnowledgeController],
   providers: [KnowledgeService],
   exports: [KnowledgeService],

@@ -78,10 +78,12 @@ export class OffersService {
     });
 
     await this.notificationsService.notifyAdmins({
-      type: 'new_offer',
+      type: 'offer_created',
       title: 'Nouvelle offre publiée',
-      body: `${offer.title} — ${offer.plasticType}`,
+      message: `${offer.title} — ${offer.plasticType}`,
       link: '/admin/offers',
+      createdBy: userId,
+      metadata: { offerId: offer._id.toString() },
     });
 
     return offer;
@@ -96,9 +98,20 @@ export class OffersService {
     const offer = await this.model.findById(new Types.ObjectId(id));
     if (!offer) throw new NotFoundException('Offer not found');
     if (offer.owner.toString() !== userId && userRole !== Role.ADMIN) throw new ForbiddenException();
-    return this.model
+    const updated = await this.model
       .findByIdAndUpdate(new Types.ObjectId(id), dto, { new: true })
       .populate('owner', 'fullName username avatarUrl rating');
+
+    await this.notificationsService.notifyAdmins({
+      type: 'offer_updated',
+      title: 'Offre modifiée',
+      message: `${updated.title} a été mise à jour`,
+      link: '/admin/offers',
+      createdBy: userId,
+      metadata: { offerId: id },
+    });
+
+    return updated;
   }
 
   async remove(id: string, userId: string, userRole: string): Promise<void> {
@@ -106,6 +119,14 @@ export class OffersService {
     if (!offer) throw new NotFoundException('Offer not found');
     if (offer.owner.toString() !== userId && userRole !== Role.ADMIN) throw new ForbiddenException();
     await this.model.deleteOne({ _id: new Types.ObjectId(id) });
+
+    await this.notificationsService.notifyAdmins({
+      type: 'offer_deleted',
+      title: 'Offre supprimée',
+      message: `${offer.title} a été supprimée`,
+      createdBy: userId,
+      metadata: { offerId: id },
+    });
   }
 
   async myOffers(userId: string) {
@@ -115,21 +136,54 @@ export class OffersService {
       .lean();
   }
 
-  async verify(id: string): Promise<OfferDocument> {
-    return this.model.findByIdAndUpdate(
+  async verify(id: string, adminId: string): Promise<OfferDocument> {
+    const offer = await this.model.findByIdAndUpdate(
       new Types.ObjectId(id),
       { status: OfferStatus.VERIFIED },
       { new: true },
     );
+    if (!offer) throw new NotFoundException('Offer not found');
+
+    await this.notificationsService.notifyAdmins({
+      type: 'offer_approved',
+      title: 'Offre approuvée',
+      message: `${offer.title} a été approuvée`,
+      link: '/admin/offers',
+      createdBy: adminId,
+      metadata: { offerId: id },
+    });
+
+    return offer;
   }
 
-  async updateStatus(id: string, status: OfferStatus): Promise<OfferDocument> {
+  async updateStatus(id: string, status: OfferStatus, adminId: string): Promise<OfferDocument> {
     const offer = await this.model.findByIdAndUpdate(
       new Types.ObjectId(id),
       { status },
       { new: true },
     );
     if (!offer) throw new NotFoundException('Offer not found');
+
+    if (status === OfferStatus.SUSPENDED) {
+      await this.notificationsService.notifyAdmins({
+        type: 'offer_rejected',
+        title: 'Offre rejetée / suspendue',
+        message: `${offer.title} a été suspendue`,
+        link: '/admin/offers',
+        createdBy: adminId,
+        metadata: { offerId: id },
+      });
+    } else if (status === OfferStatus.ACTIVE) {
+      await this.notificationsService.notifyAdmins({
+        type: 'offer_approved',
+        title: 'Offre réactivée',
+        message: `${offer.title} a été réactivée`,
+        link: '/admin/offers',
+        createdBy: adminId,
+        metadata: { offerId: id },
+      });
+    }
+
     return offer;
   }
 

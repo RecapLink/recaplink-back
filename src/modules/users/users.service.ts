@@ -15,10 +15,14 @@ import { Role } from '../../common/enums/role.enum';
 import { paginate, getPaginationParams } from '../../common/utils/paginate.util';
 import { Paginated } from '../../common/types/pagination.type';
 import { Types } from 'mongoose';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepo: UsersRepository) {}
+  constructor(
+    private readonly usersRepo: UsersRepository,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async create(dto: CreateUserDto): Promise<UserDocument> {
     const existing = await this.usersRepo.findByEmail(dto.email);
@@ -71,12 +75,50 @@ export class UsersService {
     }
     const user = await this.usersRepo.updateById(id, { $set: dto });
     if (!user) throw new NotFoundException('User not found');
+
+    await this.notificationsService.notifyAdmins({
+      type: 'user_updated',
+      title: 'Compte mis à jour',
+      message: `Le compte de ${user.fullName} a été modifié`,
+      link: '/admin/collectors',
+      createdBy: requesterId,
+      metadata: { userId: id },
+    });
+
     return user;
   }
 
-  async updateStatus(id: string, status: UserStatus): Promise<UserDocument> {
+  async updateStatus(id: string, status: UserStatus, adminId: string): Promise<UserDocument> {
+    const previous = await this.usersRepo.findById(id);
+    if (!previous) throw new NotFoundException('User not found');
+
     const user = await this.usersRepo.updateById(id, { $set: { status } });
     if (!user) throw new NotFoundException('User not found');
+
+    let type: string | null = null;
+    let title = '';
+    if (previous.status === UserStatus.PENDING && status === UserStatus.ACTIVE) {
+      type = 'user_verified';
+      title = 'Compte vérifié';
+    } else if (status === UserStatus.SUSPENDED) {
+      type = 'user_suspended';
+      title = 'Compte suspendu';
+    } else if (previous.status === UserStatus.SUSPENDED && status === UserStatus.ACTIVE) {
+      type = 'user_reactivated';
+      title = 'Compte réactivé';
+    }
+
+    if (type) {
+      await this.notificationsService.notifyAdmins({
+        type,
+        title,
+        message: `Le compte de ${user.fullName} est maintenant ${status}`,
+        link: '/admin/collectors',
+        createdBy: adminId,
+        metadata: { userId: id },
+      });
+    }
+
     return user;
   }
 
@@ -102,10 +144,18 @@ export class UsersService {
     return user;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, adminId: string): Promise<void> {
     const user = await this.usersRepo.findById(id);
     if (!user) throw new NotFoundException('User not found');
     await this.usersRepo.deleteById(id);
+
+    await this.notificationsService.notifyAdmins({
+      type: 'user_deleted',
+      title: 'Compte supprimé',
+      message: `Le compte de ${user.fullName} a été supprimé`,
+      createdBy: adminId,
+      metadata: { userId: id },
+    });
   }
 
   async findByResetToken(hashedToken: string): Promise<UserDocument | null> {

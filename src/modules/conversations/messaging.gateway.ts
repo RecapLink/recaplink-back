@@ -42,6 +42,12 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
     if (socket.data.userId) this.userSockets.delete(socket.data.userId);
   }
 
+  /** Push an event directly to a single user's socket, if currently connected. */
+  emitToUser(userId: string, event: string, payload: unknown): void {
+    const socketId = this.userSockets.get(userId);
+    if (socketId) this.server.to(socketId).emit(event, payload);
+  }
+
   @SubscribeMessage('join_conversation')
   handleJoin(@MessageBody() data: { conversationId: string }, @ConnectedSocket() socket: Socket) {
     socket.join(`conv:${data.conversationId}`);

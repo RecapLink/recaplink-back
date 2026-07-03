@@ -35,15 +35,15 @@ export class KnowledgeController {
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':slug')
-  update(@Param('slug') slug: string, @Body() dto: Partial<CreateKnowledgeDto>) {
-    return this.svc.update(slug, dto);
+  update(@Param('slug') slug: string, @Body() dto: Partial<CreateKnowledgeDto>, @CurrentUser('sub') adminId: string) {
+    return this.svc.update(slug, dto, adminId);
   }
 
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @Delete(':slug')
-  remove(@Param('slug') slug: string) {
-    return this.svc.remove(slug);
+  remove(@Param('slug') slug: string, @CurrentUser('sub') adminId: string) {
+    return this.svc.remove(slug, adminId);
   }
 
   @Post(':slug/like')
@@ -54,14 +54,14 @@ export class KnowledgeController {
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':slug/publish')
-  publish(@Param('slug') slug: string) {
-    return this.svc.publish(slug);
+  publish(@Param('slug') slug: string, @CurrentUser('sub') adminId: string) {
+    return this.svc.publish(slug, adminId);
   }
 
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':slug/archive')
-  archive(@Param('slug') slug: string) {
-    return this.svc.archive(slug);
+  archive(@Param('slug') slug: string, @CurrentUser('sub') adminId: string) {
+    return this.svc.archive(slug, adminId);
   }
 }

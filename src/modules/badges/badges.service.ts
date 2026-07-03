@@ -17,16 +17,48 @@ export class BadgesService {
     return this.badgeModel.find().lean();
   }
 
-  async create(dto: any): Promise<BadgeDocument> {
-    return this.badgeModel.create(dto);
+  async create(dto: any, adminId: string): Promise<BadgeDocument> {
+    const badge = await this.badgeModel.create(dto);
+
+    await this.notificationsService.notifyAdmins({
+      type: 'badge_created',
+      title: 'Nouveau badge',
+      message: `Le badge "${badge.name?.fr || ''}" a été créé`,
+      link: '/admin/badges',
+      createdBy: adminId,
+      metadata: { badgeId: badge._id.toString() },
+    });
+
+    return badge;
   }
 
-  async update(id: string, dto: any): Promise<BadgeDocument> {
-    return this.badgeModel.findByIdAndUpdate(new Types.ObjectId(id), dto, { new: true });
+  async update(id: string, dto: any, adminId: string): Promise<BadgeDocument> {
+    const badge = await this.badgeModel.findByIdAndUpdate(new Types.ObjectId(id), dto, { new: true });
+    if (!badge) throw new NotFoundException('Badge not found');
+
+    await this.notificationsService.notifyAdmins({
+      type: 'badge_updated',
+      title: 'Badge modifié',
+      message: `Le badge "${badge.name?.fr || ''}" a été mis à jour`,
+      link: '/admin/badges',
+      createdBy: adminId,
+      metadata: { badgeId: id },
+    });
+
+    return badge;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, adminId: string): Promise<void> {
+    const badge = await this.badgeModel.findById(new Types.ObjectId(id));
     await this.badgeModel.deleteOne({ _id: new Types.ObjectId(id) });
+
+    await this.notificationsService.notifyAdmins({
+      type: 'badge_deleted',
+      title: 'Badge supprimé',
+      message: `Le badge "${badge?.name?.fr || ''}" a été supprimé`,
+      createdBy: adminId,
+      metadata: { badgeId: id },
+    });
   }
 
   async assign(badgeId: string, userId: string): Promise<UserBadgeDocument> {
@@ -42,8 +74,17 @@ export class BadgesService {
       recipientId: userId,
       type: 'badge_awarded',
       title: 'Nouveau badge !',
-      body: `Vous avez reçu le badge "${badge.name?.fr || ''}"`,
+      message: `Vous avez reçu le badge "${badge.name?.fr || ''}"`,
       link: '/profile/badges',
+      metadata: { badgeId },
+    });
+
+    await this.notificationsService.notifyAdmins({
+      type: 'badge_awarded',
+      title: 'Badge attribué',
+      message: `Le badge "${badge.name?.fr || ''}" a été attribué à un utilisateur`,
+      link: '/admin/badges',
+      metadata: { badgeId, userId },
     });
 
     return ub;

@@ -1,87 +1,91 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, Types } from 'mongoose';
-import { Notification, NotificationDocument } from './schemas/notification.schema';
+import { Types } from 'mongoose';
+import { NotificationsRepository } from './notifications.repository';
 import { CreateNotificationDto } from './dto/create-notification.dto';
-import { User, UserDocument } from '../users/schemas/user.schema';
-import { Role } from '../../common/enums/role.enum';
+import { NOTIFICATION_META, DEFAULT_NOTIFICATION_META } from './notification-types';
+import { MessagingGateway } from '../conversations/messaging.gateway';
 
 interface NotifyAdminsParams {
   type: string;
   title: string;
-  body: string;
+  message: string;
   link?: string;
+  createdBy?: string;
+  metadata?: Record<string, unknown>;
   prefKey?: 'newSignalement' | 'newInscription' | 'chatbotEscalade';
-  excludeUserId?: string;
 }
 
 @Injectable()
 export class NotificationsService {
   constructor(
-    @InjectModel(Notification.name) private readonly model: Model<NotificationDocument>,
-    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    private readonly repo: NotificationsRepository,
+    private readonly messagingGateway: MessagingGateway,
   ) {}
 
-  async create(dto: CreateNotificationDto): Promise<NotificationDocument> {
-    return this.model.create({ ...dto, recipient: new Types.ObjectId(dto.recipientId) });
+  async create(dto: CreateNotificationDto & { createdBy?: string }) {
+    const meta = NOTIFICATION_META[dto.type] || DEFAULT_NOTIFICATION_META;
+    const notif = await this.repo.insertOne({
+      recipient: new Types.ObjectId(dto.recipientId),
+      type: dto.type,
+      category: meta.category,
+      icon: meta.icon,
+      color: meta.color,
+      title: dto.title,
+      message: dto.message,
+      link: dto.link || '',
+      createdBy: dto.createdBy ? new Types.ObjectId(dto.createdBy) : undefined,
+      metadata: dto.metadata,
+    });
+
+    this.messagingGateway.emitToUser(dto.recipientId, 'new_notification', notif);
+
+    return notif;
   }
 
   /** Fan out a notification to every admin/super-admin, optionally gated by a notifPrefs toggle. */
   async notifyAdmins(params: NotifyAdminsParams): Promise<void> {
-    const filter: FilterQuery<UserDocument> = { role: { $in: [Role.ADMIN, Role.SUPER_ADMIN] } };
-    if (params.prefKey) filter[`notifPrefs.${params.prefKey}`] = { $ne: false };
-    if (params.excludeUserId) filter._id = { $ne: new Types.ObjectId(params.excludeUserId) };
+    const adminIds = await this.repo.findAdminIds(params.prefKey);
+    if (!adminIds.length) return;
 
-    const admins = await this.userModel.find(filter).select('_id').lean();
-    if (!admins.length) return;
+    const meta = NOTIFICATION_META[params.type] || DEFAULT_NOTIFICATION_META;
+    const docs = adminIds.map(recipient => ({
+      recipient,
+      type: params.type,
+      category: meta.category,
+      icon: meta.icon,
+      color: meta.color,
+      title: params.title,
+      message: params.message,
+      link: params.link || '',
+      createdBy: params.createdBy ? new Types.ObjectId(params.createdBy) : undefined,
+      metadata: params.metadata,
+    }));
 
-    await this.model.insertMany(
-      admins.map(a => ({
-        recipient: a._id,
-        type: params.type,
-        title: params.title,
-        body: params.body,
-        link: params.link || '',
-      })),
-    );
+    await this.repo.insertMany(docs);
+
+    for (const doc of docs) {
+      this.messagingGateway.emitToUser(doc.recipient.toString(), 'new_notification', doc);
+    }
   }
 
   async findForUser(userId: string, page = 1, limit = 20) {
-    const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      this.model
-        .find({ recipient: new Types.ObjectId(userId) })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      this.model.countDocuments({ recipient: new Types.ObjectId(userId) }),
-    ]);
+    const [data, total] = await this.repo.findForRecipient(new Types.ObjectId(userId), (page - 1) * limit, limit);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async countUnread(userId: string): Promise<number> {
-    return this.model.countDocuments({ recipient: new Types.ObjectId(userId), isRead: false });
+    return this.repo.countUnread(new Types.ObjectId(userId));
   }
 
   async markRead(id: string, userId: string): Promise<void> {
-    await this.model.updateOne(
-      { _id: new Types.ObjectId(id), recipient: new Types.ObjectId(userId) },
-      { isRead: true },
-    );
+    await this.repo.markRead(new Types.ObjectId(id), new Types.ObjectId(userId));
   }
 
   async markAllRead(userId: string): Promise<void> {
-    await this.model.updateMany(
-      { recipient: new Types.ObjectId(userId), isRead: false },
-      { isRead: true },
-    );
+    await this.repo.markAllRead(new Types.ObjectId(userId));
   }
 
   async delete(id: string, userId: string): Promise<void> {
-    await this.model.deleteOne({
-      _id: new Types.ObjectId(id),
-      recipient: new Types.ObjectId(userId),
-    });
+    await this.repo.deleteOne(new Types.ObjectId(id), new Types.ObjectId(userId));
   }
 }

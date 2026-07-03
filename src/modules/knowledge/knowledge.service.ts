@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Knowledge, KnowledgeDocument } from './schemas/knowledge.schema';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 function slugify(text: string): string {
   return (
@@ -17,7 +18,10 @@ function slugify(text: string): string {
 
 @Injectable()
 export class KnowledgeService {
-  constructor(@InjectModel(Knowledge.name) private readonly model: Model<KnowledgeDocument>) {}
+  constructor(
+    @InjectModel(Knowledge.name) private readonly model: Model<KnowledgeDocument>,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async findAll(query: {
     type?: string;
@@ -59,15 +63,47 @@ export class KnowledgeService {
 
   async create(dto: CreateKnowledgeDto, authorId: string): Promise<KnowledgeDocument> {
     const slug = dto.slug || slugify(dto.title?.fr || 'article');
-    return this.model.create({ ...dto, slug, author: new Types.ObjectId(authorId) });
+    const item = await this.model.create({ ...dto, slug, author: new Types.ObjectId(authorId) });
+
+    await this.notificationsService.notifyAdmins({
+      type: 'article_created',
+      title: 'Nouvel article',
+      message: `${item.title?.fr || slug} a été créé`,
+      link: '/admin/knowledge',
+      createdBy: authorId,
+      metadata: { slug },
+    });
+
+    return item;
   }
 
-  async update(slug: string, dto: Partial<CreateKnowledgeDto>): Promise<KnowledgeDocument> {
-    return this.model.findOneAndUpdate({ slug }, dto, { new: true });
+  async update(slug: string, dto: Partial<CreateKnowledgeDto>, adminId: string): Promise<KnowledgeDocument> {
+    const item = await this.model.findOneAndUpdate({ slug }, dto, { new: true });
+    if (!item) throw new NotFoundException('Knowledge item not found');
+
+    await this.notificationsService.notifyAdmins({
+      type: 'article_updated',
+      title: 'Article modifié',
+      message: `${item.title?.fr || slug} a été mis à jour`,
+      link: '/admin/knowledge',
+      createdBy: adminId,
+      metadata: { slug },
+    });
+
+    return item;
   }
 
-  async remove(slug: string): Promise<void> {
+  async remove(slug: string, adminId: string): Promise<void> {
+    const item = await this.model.findOne({ slug });
     await this.model.deleteOne({ slug });
+
+    await this.notificationsService.notifyAdmins({
+      type: 'article_deleted',
+      title: 'Article supprimé',
+      message: `${item?.title?.fr || slug} a été supprimé`,
+      createdBy: adminId,
+      metadata: { slug },
+    });
   }
 
   async toggleLike(slug: string, userId: string): Promise<KnowledgeDocument> {
@@ -90,11 +126,35 @@ export class KnowledgeService {
     }
   }
 
-  async publish(slug: string): Promise<KnowledgeDocument> {
-    return this.model.findOneAndUpdate({ slug }, { status: 'published' }, { new: true });
+  async publish(slug: string, adminId: string): Promise<KnowledgeDocument> {
+    const item = await this.model.findOneAndUpdate({ slug }, { status: 'published' }, { new: true });
+    if (!item) throw new NotFoundException('Knowledge item not found');
+
+    await this.notificationsService.notifyAdmins({
+      type: 'article_published',
+      title: 'Article publié',
+      message: `${item.title?.fr || slug} a été publié`,
+      link: '/admin/knowledge',
+      createdBy: adminId,
+      metadata: { slug },
+    });
+
+    return item;
   }
 
-  async archive(slug: string): Promise<KnowledgeDocument> {
-    return this.model.findOneAndUpdate({ slug }, { status: 'archived' }, { new: true });
+  async archive(slug: string, adminId: string): Promise<KnowledgeDocument> {
+    const item = await this.model.findOneAndUpdate({ slug }, { status: 'archived' }, { new: true });
+    if (!item) throw new NotFoundException('Knowledge item not found');
+
+    await this.notificationsService.notifyAdmins({
+      type: 'article_unpublished',
+      title: 'Article archivé',
+      message: `${item.title?.fr || slug} a été archivé`,
+      link: '/admin/knowledge',
+      createdBy: adminId,
+      metadata: { slug },
+    });
+
+    return item;
   }
 }

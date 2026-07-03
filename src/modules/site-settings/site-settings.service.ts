@@ -53,11 +53,11 @@ export class SiteSettingsService {
     );
 
     await this.notificationsService.notifyAdmins({
-      type: 'system',
+      type: 'settings_updated',
       title: 'Paramètres mis à jour',
-      body: 'Les paramètres du widget d\'assistance ont été modifiés',
+      message: 'Les paramètres du widget d\'assistance ont été modifiés',
       link: '/admin/settings',
-      excludeUserId: adminId,
+      createdBy: adminId,
     });
 
     return this.toSupportDto(doc);

@@ -21,22 +21,22 @@ export class BadgesController {
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @Post()
-  create(@Body() dto: any) {
-    return this.svc.create(dto);
+  create(@Body() dto: any, @CurrentUser('sub') adminId: string) {
+    return this.svc.create(dto, adminId);
   }
 
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: any) {
-    return this.svc.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: any, @CurrentUser('sub') adminId: string) {
+    return this.svc.update(id, dto, adminId);
   }
 
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.svc.remove(id);
+  remove(@Param('id') id: string, @CurrentUser('sub') adminId: string) {
+    return this.svc.remove(id, adminId);
   }
 
   @UseGuards(RolesGuard)
