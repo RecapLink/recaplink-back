@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Badge, BadgeDocument } from './schemas/badge.schema';
 import { UserBadge, UserBadgeDocument } from './schemas/user-badge.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class BadgesService {
   constructor(
     @InjectModel(Badge.name) private readonly badgeModel: Model<BadgeDocument>,
     @InjectModel(UserBadge.name) private readonly userBadgeModel: Model<UserBadgeDocument>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   findAll() {
@@ -35,6 +37,15 @@ export class BadgesService {
       user: new Types.ObjectId(userId),
     });
     await this.badgeModel.findByIdAndUpdate(badgeId, { $inc: { userCount: 1 } });
+
+    await this.notificationsService.create({
+      recipientId: userId,
+      type: 'badge_awarded',
+      title: 'Nouveau badge !',
+      body: `Vous avez reçu le badge "${badge.name?.fr || ''}"`,
+      link: '/profile/badges',
+    });
+
     return ub;
   }
 

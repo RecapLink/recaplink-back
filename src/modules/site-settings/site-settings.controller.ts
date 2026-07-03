@@ -3,6 +3,7 @@ import { SiteSettingsService } from './site-settings.service';
 import { UpdateSupportSettingsDto } from './dto/update-support-settings.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Role } from '../../common/enums/role.enum';
@@ -20,7 +21,7 @@ export class SiteSettingsController {
 
   @Roles(Role.SUPER_ADMIN)
   @Patch('support')
-  updateSupport(@Body() dto: UpdateSupportSettingsDto) {
-    return this.svc.updateSupportSettings(dto);
+  updateSupport(@Body() dto: UpdateSupportSettingsDto, @CurrentUser('sub') userId: string) {
+    return this.svc.updateSupportSettings(dto, userId);
   }
 }

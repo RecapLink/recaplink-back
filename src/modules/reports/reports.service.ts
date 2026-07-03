@@ -2,10 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Report, ReportDocument } from './schemas/report.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ReportsService {
-  constructor(@InjectModel(Report.name) private readonly model: Model<ReportDocument>) {}
+  constructor(
+    @InjectModel(Report.name) private readonly model: Model<ReportDocument>,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async create(
     type: string,
@@ -13,12 +17,22 @@ export class ReportsService {
     reporterId: string,
     reason: string,
   ): Promise<ReportDocument> {
-    return this.model.create({
+    const report = await this.model.create({
       type,
       targetId: new Types.ObjectId(targetId),
       reporter: new Types.ObjectId(reporterId),
       reason,
     });
+
+    await this.notificationsService.notifyAdmins({
+      type: 'report',
+      title: 'Nouveau signalement',
+      body: `Signalement sur ${type} : ${reason}`,
+      link: '/admin/offers',
+      prefKey: 'newSignalement',
+    });
+
+    return report;
   }
 
   async findAll(query: { status?: string; type?: string; page?: number; limit?: number }) {

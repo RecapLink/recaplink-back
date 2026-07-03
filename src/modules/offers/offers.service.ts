@@ -7,6 +7,7 @@ import { UpdateOfferDto } from './dto/update-offer.dto';
 import { OfferQueryDto } from './dto/offer-query.dto';
 import { Role } from '../../common/enums/role.enum';
 import { OfferStatus } from '../../common/enums/offer-status.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 
 function generateRef(): string {
   const year = new Date().getFullYear();
@@ -16,7 +17,10 @@ function generateRef(): string {
 
 @Injectable()
 export class OffersService {
-  constructor(@InjectModel(Offer.name) private readonly model: Model<OfferDocument>) {}
+  constructor(
+    @InjectModel(Offer.name) private readonly model: Model<OfferDocument>,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async findAll(query: OfferQueryDto) {
     const filter: any = {};
@@ -65,13 +69,22 @@ export class OffersService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
     const { status, ...rest } = dto;
-    return this.model.create({
+    const offer = await this.model.create({
       ...rest,
       refCode: generateRef(),
       owner: new Types.ObjectId(userId),
       expiresAt,
       ...(status && { status }),
     });
+
+    await this.notificationsService.notifyAdmins({
+      type: 'new_offer',
+      title: 'Nouvelle offre publiée',
+      body: `${offer.title} — ${offer.plasticType}`,
+      link: '/admin/offers',
+    });
+
+    return offer;
   }
 
   async update(

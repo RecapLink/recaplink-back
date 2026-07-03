@@ -17,6 +17,8 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtPayload } from '../../common/types/jwt-payload.type';
 import { UserDocument } from '../users/schemas/user.schema';
 import { EmailService } from '../email/email.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { Role } from '../../common/enums/role.enum';
 
 const RESET_TOKEN_EXPIRES_MINUTES = 30;
 
@@ -29,10 +31,20 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly emailService: EmailService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async register(dto: RegisterDto) {
     const user = await this.usersService.create(dto);
+
+    await this.notificationsService.notifyAdmins({
+      type: 'new_user',
+      title: 'Nouvelle inscription',
+      body: `${user.fullName} (${user.role}) attend une approbation`,
+      link: user.role === Role.RECYCLEUR ? '/admin/recyclers' : '/admin/collectors',
+      prefKey: 'newInscription',
+    });
+
     return { message: 'Registration successful. Awaiting admin approval.' };
   }
 

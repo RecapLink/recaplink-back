@@ -4,6 +4,7 @@ import { Badge, BadgeSchema } from './schemas/badge.schema';
 import { UserBadge, UserBadgeSchema } from './schemas/user-badge.schema';
 import { BadgesService } from './badges.service';
 import { BadgesController } from './badges.controller';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { BadgesController } from './badges.controller';
       { name: Badge.name, schema: BadgeSchema },
       { name: UserBadge.name, schema: UserBadgeSchema },
     ]),
+    NotificationsModule,
   ],
   controllers: [BadgesController],
   providers: [BadgesService],

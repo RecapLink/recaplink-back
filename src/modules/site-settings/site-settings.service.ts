@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SiteSettings, SiteSettingsDocument } from './schemas/site-settings.schema';
 import { UpdateSupportSettingsDto } from './dto/update-support-settings.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class SiteSettingsService {
   constructor(
     @InjectModel(SiteSettings.name)
     private readonly model: Model<SiteSettingsDocument>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private toSupportDto(doc: SiteSettingsDocument) {
@@ -33,7 +35,7 @@ export class SiteSettingsService {
     return this.toSupportDto(doc);
   }
 
-  async updateSupportSettings(dto: UpdateSupportSettingsDto) {
+  async updateSupportSettings(dto: UpdateSupportSettingsDto, adminId: string) {
     const update: Partial<SiteSettings> = {};
     if (dto.supportEnabled !== undefined) update.supportEnabled = dto.supportEnabled;
     if (dto.supportTitle !== undefined) update.supportTitle = dto.supportTitle;
@@ -49,6 +51,15 @@ export class SiteSettingsService {
       { $set: update },
       { upsert: true, new: true },
     );
+
+    await this.notificationsService.notifyAdmins({
+      type: 'system',
+      title: 'Paramètres mis à jour',
+      body: 'Les paramètres du widget d\'assistance ont été modifiés',
+      link: '/admin/settings',
+      excludeUserId: adminId,
+    });
+
     return this.toSupportDto(doc);
   }
 }
