@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Knowledge, KnowledgeDocument } from './schemas/knowledge.schema';
+import { KnowledgeView, KnowledgeViewDocument } from './schemas/knowledge-view.schema';
+import { KnowledgeCategory, KnowledgeCategoryDocument } from './schemas/knowledge-category.schema';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -20,12 +22,19 @@ function slugify(text: string): string {
 export class KnowledgeService {
   constructor(
     @InjectModel(Knowledge.name) private readonly model: Model<KnowledgeDocument>,
+    @InjectModel(KnowledgeView.name) private readonly viewModel: Model<KnowledgeViewDocument>,
+    @InjectModel(KnowledgeCategory.name) private readonly categoryModel: Model<KnowledgeCategoryDocument>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
   async findAll(query: {
     type?: string;
     category?: string;
+    difficulty?: string;
+    status?: string;
+    author?: string;
+    dateFrom?: string;
+    dateTo?: string;
     search?: string;
     page?: number;
     limit?: number;
@@ -34,6 +43,14 @@ export class KnowledgeService {
     const filter: any = query.admin ? {} : { status: 'published' };
     if (query.type) filter.type = query.type;
     if (query.category) filter.category = query.category;
+    if (query.difficulty) filter.difficulty = query.difficulty;
+    if (query.admin && query.status) filter.status = query.status;
+    if (query.author) filter.author = new Types.ObjectId(query.author);
+    if (query.dateFrom || query.dateTo) {
+      filter.createdAt = {};
+      if (query.dateFrom) filter.createdAt.$gte = new Date(query.dateFrom);
+      if (query.dateTo) filter.createdAt.$lte = new Date(query.dateTo);
+    }
     if (query.search) filter['title.fr'] = new RegExp(query.search, 'i');
 
     const page = query.page || 1;
@@ -58,12 +75,25 @@ export class KnowledgeService {
       .findOneAndUpdate({ slug }, { $inc: { viewCount: 1 } }, { new: true })
       .populate('author', 'fullName avatarUrl');
     if (!item) throw new NotFoundException('Knowledge item not found');
+
+    try {
+      await this.viewModel.create({ knowledge: item._id, viewedAt: new Date() });
+    } catch {
+      // never fail the page load over a view-logging write
+    }
+
     return item;
   }
 
   async create(dto: CreateKnowledgeDto, authorId: string): Promise<KnowledgeDocument> {
     const slug = dto.slug || slugify(dto.title?.fr || 'article');
-    const item = await this.model.create({ ...dto, slug, author: new Types.ObjectId(authorId) });
+    const publishedAt = dto.status === 'published' ? new Date() : undefined;
+    const item = await this.model.create({
+      ...dto,
+      slug,
+      author: new Types.ObjectId(authorId),
+      ...(publishedAt ? { publishedAt } : {}),
+    });
 
     await this.notificationsService.notifyAdmins({
       type: 'article_created',
@@ -127,7 +157,11 @@ export class KnowledgeService {
   }
 
   async publish(slug: string, adminId: string): Promise<KnowledgeDocument> {
-    const item = await this.model.findOneAndUpdate({ slug }, { status: 'published' }, { new: true });
+    const existing = await this.model.findOne({ slug });
+    if (!existing) throw new NotFoundException('Knowledge item not found');
+    const update: any = { status: 'published' };
+    if (!existing.publishedAt) update.publishedAt = new Date();
+    const item = await this.model.findOneAndUpdate({ slug }, update, { new: true });
     if (!item) throw new NotFoundException('Knowledge item not found');
 
     await this.notificationsService.notifyAdmins({
@@ -156,5 +190,76 @@ export class KnowledgeService {
     });
 
     return item;
+  }
+
+  async getStatistics() {
+    const [byType, byStatus, totals, mostViewed, topCategoriesAgg] = await Promise.all([
+      this.model.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
+      this.model.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+      this.model.aggregate([
+        { $group: { _id: null, totalViews: { $sum: '$viewCount' }, totalLikes: { $sum: '$likeCount' } } },
+      ]),
+      this.model
+        .find({ status: 'published' })
+        .sort({ viewCount: -1 })
+        .limit(5)
+        .select('title slug type viewCount likeCount coverImageUrl')
+        .lean(),
+      this.model.aggregate([
+        { $group: { _id: '$category', count: { $sum: 1 }, views: { $sum: '$viewCount' } } },
+        { $sort: { views: -1 } },
+        { $limit: 5 },
+      ]),
+    ]);
+
+    const typeCounts: Record<string, number> = { article: 0, video: 0, tutorial: 0, guide: 0, chatbot: 0 };
+    byType.forEach((t: any) => { if (t._id) typeCounts[t._id] = t.count; });
+
+    const statusCounts: Record<string, number> = { draft: 0, published: 0, archived: 0 };
+    byStatus.forEach((s: any) => { if (s._id) statusCounts[s._id] = s.count; });
+
+    // 12-month bucket builder, same technique as AnalyticsService.getRegistrationsByMonth()
+    const months: Array<{ start: Date; end: Date; label: string }> = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i, 1);
+      d.setHours(0, 0, 0, 0);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      months.push({ start: d, end, label: d.toLocaleDateString('fr-FR', { month: 'short' }) });
+    }
+    const twelveMonthsAgo = months[0].start;
+    const viewsByMonthAgg = await this.viewModel.aggregate([
+      { $match: { viewedAt: { $gte: twelveMonthsAgo } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$viewedAt' } }, count: { $sum: 1 } } },
+    ]);
+    const viewsByMonthMap = new Map(viewsByMonthAgg.map((v: any) => [v._id, v.count]));
+    const monthlyViews = months.map((m) => ({
+      month: m.label,
+      count: viewsByMonthMap.get(`${m.start.getFullYear()}-${String(m.start.getMonth() + 1).padStart(2, '0')}`) || 0,
+    }));
+
+    const categories = await this.categoryModel.find().lean();
+    const categoryMap = new Map(categories.map((c: any) => [c.slug, c]));
+    const topCategories = topCategoriesAgg
+      .filter((c: any) => c._id)
+      .map((c: any) => ({
+        slug: c._id,
+        label: categoryMap.get(c._id)?.label || c._id,
+        color: categoryMap.get(c._id)?.color || '#9ca3af',
+        count: c.count,
+        views: c.views,
+      }));
+
+    return {
+      totals: {
+        ...typeCounts,
+        ...statusCounts,
+        totalViews: totals[0]?.totalViews || 0,
+        totalLikes: totals[0]?.totalLikes || 0,
+      },
+      monthlyViews,
+      mostViewed,
+      topCategories,
+    };
   }
 }

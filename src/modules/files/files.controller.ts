@@ -72,6 +72,60 @@ export class FilesController {
     return this.filesService.uploadVoice(file);
   }
 
+  @ApiOperation({ summary: 'Upload a video file' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        video: { type: 'string', format: 'binary', description: 'Video file (mp4/webm/mov, max 100 MB)' },
+      },
+    },
+  })
+  @Post('upload-video')
+  @UseInterceptors(
+    FileInterceptor('video', {
+      storage: memoryStorage(),
+      limits: { fileSize: 100 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!file.mimetype.match(/^video\/(mp4|webm|quicktime)$/)) {
+          return cb(new Error('Only video files are allowed (mp4/webm/mov)'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async uploadVideo(@UploadedFile() file: Express.Multer.File, @Query('folder') folder = 'recaplink/knowledge/videos') {
+    return this.filesService.uploadFile(file, folder);
+  }
+
+  @ApiOperation({ summary: 'Upload a PDF document' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        pdf: { type: 'string', format: 'binary', description: 'PDF document, max 20 MB' },
+      },
+    },
+  })
+  @Post('upload-pdf')
+  @UseInterceptors(
+    FileInterceptor('pdf', {
+      storage: memoryStorage(),
+      limits: { fileSize: 20 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype !== 'application/pdf') {
+          return cb(new Error('Only PDF files are allowed'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async uploadPdf(@UploadedFile() file: Express.Multer.File, @Query('folder') folder = 'recaplink/knowledge/docs') {
+    return this.filesService.uploadFile(file, folder);
+  }
+
   @ApiOperation({ summary: 'Delete a file by Cloudinary public_id' })
   @Delete(':publicId')
   async delete(@Param('publicId') publicId: string) {
