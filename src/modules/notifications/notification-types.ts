@@ -44,6 +44,8 @@ export const NOTIFICATION_META: Record<string, NotificationMeta> = {
 
   // Reports
   report: { category: 'reports', icon: 'AlertTriangle', color: '#c41539' },
+  report_approved: { category: 'reports', icon: 'CheckCircle', color: '#4d9538' },
+  report_rejected: { category: 'reports', icon: 'XCircle', color: '#9ca3af' },
 
   // System (generic fallback, no automated trigger wired yet — see project notes)
   system: { category: 'system', icon: 'Bell', color: '#038543' },

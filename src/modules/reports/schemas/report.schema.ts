@@ -1,20 +1,36 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { ReportReason } from '../../../common/enums/report-reason.enum';
 
 export type ReportDocument = Report & Document;
 
 @Schema({ timestamps: true })
 export class Report {
-  @Prop({ enum: ['offer', 'user', 'message'], required: true }) type: string;
-  @Prop({ type: Types.ObjectId, required: true }) targetId: Types.ObjectId;
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true }) reporter: Types.ObjectId;
-  @Prop({ required: true }) reason: string;
-  @Prop({ enum: ['pending', 'reviewed', 'dismissed', 'action_taken'], default: 'pending' })
+  @Prop({ type: Types.ObjectId, ref: 'Offer', required: true, index: true })
+  offerId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  reportedBy: Types.ObjectId;
+
+  @Prop({ enum: ReportReason, required: true })
+  reason: ReportReason;
+
+  @Prop()
+  comment?: string;
+
+  @Prop({ enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true })
   status: string;
-  @Prop() adminNote: string;
-  @Prop({ type: Types.ObjectId, ref: 'User' }) reviewedBy: Types.ObjectId;
-  @Prop() reviewedAt: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  reviewedBy?: Types.ObjectId;
+
+  @Prop()
+  reviewedAt?: Date;
+
+  @Prop()
+  decisionComment?: string;
 }
 
 export const ReportSchema = SchemaFactory.createForClass(Report);
-ReportSchema.index({ status: 1, type: 1 });
+ReportSchema.index({ offerId: 1, status: 1 });
+ReportSchema.index({ status: 1, createdAt: -1 });
