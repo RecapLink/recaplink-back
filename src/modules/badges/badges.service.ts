@@ -61,7 +61,7 @@ export class BadgesService {
     });
   }
 
-  async assign(badgeId: string, userId: string): Promise<UserBadgeDocument> {
+  async assign(badgeId: string, userId: string, adminId?: string): Promise<UserBadgeDocument> {
     const badge = await this.badgeModel.findById(new Types.ObjectId(badgeId));
     if (!badge) throw new NotFoundException('Badge not found');
     const ub = await this.userBadgeModel.create({
@@ -76,6 +76,7 @@ export class BadgesService {
       title: 'Nouveau badge !',
       message: `Vous avez reçu le badge "${badge.name?.fr || ''}"`,
       link: '/profile/badges',
+      createdBy: adminId,
       metadata: { badgeId },
     });
 
@@ -84,6 +85,7 @@ export class BadgesService {
       title: 'Badge attribué',
       message: `Le badge "${badge.name?.fr || ''}" a été attribué à un utilisateur`,
       link: '/admin/badges',
+      createdBy: adminId,
       metadata: { badgeId, userId },
     });
 

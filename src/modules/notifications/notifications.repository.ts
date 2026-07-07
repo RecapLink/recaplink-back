@@ -34,11 +34,19 @@ export class NotificationsRepository {
     await this.model.insertMany(data);
   }
 
-  async findAdminIds(prefKey?: string): Promise<Types.ObjectId[]> {
+  async findAdminIds(prefKey?: string, excludeUserId?: string): Promise<Types.ObjectId[]> {
     const filter: Record<string, unknown> = { role: { $in: [Role.ADMIN, Role.SUPER_ADMIN] } };
     if (prefKey) filter[`notifPrefs.${prefKey}`] = { $ne: false };
+    if (excludeUserId) filter._id = { $ne: new Types.ObjectId(excludeUserId) };
     const admins = await this.userModel.find(filter).select('_id').lean();
     return admins.map(a => a._id);
+  }
+
+  async findByRoles(roles: string[], excludeUserId?: string): Promise<Types.ObjectId[]> {
+    const filter: Record<string, unknown> = { role: { $in: roles } };
+    if (excludeUserId) filter._id = { $ne: new Types.ObjectId(excludeUserId) };
+    const users = await this.userModel.find(filter).select('_id').lean();
+    return users.map(u => u._id);
   }
 
   async findForRecipient(recipientId: Types.ObjectId, skip: number, limit: number) {

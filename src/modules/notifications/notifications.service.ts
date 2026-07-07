@@ -15,6 +15,16 @@ interface NotifyAdminsParams {
   prefKey?: 'newSignalement' | 'newInscription' | 'chatbotEscalade';
 }
 
+interface NotifyRolesParams {
+  roles: string[];
+  type: string;
+  title: string;
+  message: string;
+  link?: string;
+  excludeUserId?: string;
+  metadata?: Record<string, unknown>;
+}
+
 @Injectable()
 export class NotificationsService {
   constructor(
@@ -23,6 +33,8 @@ export class NotificationsService {
   ) {}
 
   async create(dto: CreateNotificationDto & { createdBy?: string }) {
+    if (dto.createdBy && dto.createdBy === dto.recipientId) return;
+
     const meta = NOTIFICATION_META[dto.type] || DEFAULT_NOTIFICATION_META;
     const notif = await this.repo.insertOne({
       recipient: new Types.ObjectId(dto.recipientId),
@@ -42,9 +54,9 @@ export class NotificationsService {
     return notif;
   }
 
-  /** Fan out a notification to every admin/super-admin, optionally gated by a notifPrefs toggle. */
+  /** Fan out a notification to every admin/super-admin, optionally gated by a notifPrefs toggle. Excludes the actor. */
   async notifyAdmins(params: NotifyAdminsParams): Promise<void> {
-    const adminIds = await this.repo.findAdminIds(params.prefKey);
+    const adminIds = await this.repo.findAdminIds(params.prefKey, params.createdBy);
     if (!adminIds.length) return;
 
     const meta = NOTIFICATION_META[params.type] || DEFAULT_NOTIFICATION_META;
@@ -63,9 +75,41 @@ export class NotificationsService {
 
     await this.repo.insertMany(docs);
 
-    for (const doc of docs) {
-      this.messagingGateway.emitToUser(doc.recipient.toString(), 'new_notification', doc);
-    }
+    this.messagingGateway.emitToRoom(
+      'super-admins',
+      'new_notification',
+      { type: params.type, category: meta.category, icon: meta.icon, color: meta.color, title: params.title, message: params.message, link: params.link || '', metadata: params.metadata },
+      params.createdBy,
+    );
+  }
+
+  /** Fan out a notification to every user with one of the given roles. Excludes the actor. */
+  async notifyRoles(params: NotifyRolesParams): Promise<void> {
+    const recipientIds = await this.repo.findByRoles(params.roles, params.excludeUserId);
+    if (!recipientIds.length) return;
+
+    const meta = NOTIFICATION_META[params.type] || DEFAULT_NOTIFICATION_META;
+    const docs = recipientIds.map(recipient => ({
+      recipient,
+      type: params.type,
+      category: meta.category,
+      icon: meta.icon,
+      color: meta.color,
+      title: params.title,
+      message: params.message,
+      link: params.link || '',
+      createdBy: params.excludeUserId ? new Types.ObjectId(params.excludeUserId) : undefined,
+      metadata: params.metadata,
+    }));
+
+    await this.repo.insertMany(docs);
+
+    this.messagingGateway.emitToRoles(
+      params.roles,
+      'new_notification',
+      { type: params.type, category: meta.category, icon: meta.icon, color: meta.color, title: params.title, message: params.message, link: params.link || '', metadata: params.metadata },
+      params.excludeUserId,
+    );
   }
 
   async findForUser(userId: string, page = 1, limit = 20) {

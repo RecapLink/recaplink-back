@@ -153,6 +153,16 @@ export class OffersService {
       metadata: { offerId: id },
     });
 
+    await this.notificationsService.create({
+      recipientId: offer.owner.toString(),
+      type: 'offer_approved',
+      title: 'Votre offre a été approuvée',
+      message: `${offer.title} a été approuvée`,
+      link: `/offers/${id}`,
+      createdBy: adminId,
+      metadata: { offerId: id },
+    });
+
     return offer;
   }
 
@@ -173,12 +183,32 @@ export class OffersService {
         createdBy: adminId,
         metadata: { offerId: id },
       });
+
+      await this.notificationsService.create({
+        recipientId: offer.owner.toString(),
+        type: 'offer_rejected',
+        title: 'Votre offre a été suspendue',
+        message: `${offer.title} a été suspendue`,
+        link: `/offers/${id}`,
+        createdBy: adminId,
+        metadata: { offerId: id },
+      });
     } else if (status === OfferStatus.ACTIVE) {
       await this.notificationsService.notifyAdmins({
         type: 'offer_approved',
         title: 'Offre réactivée',
         message: `${offer.title} a été réactivée`,
         link: '/admin/offers',
+        createdBy: adminId,
+        metadata: { offerId: id },
+      });
+
+      await this.notificationsService.create({
+        recipientId: offer.owner.toString(),
+        type: 'offer_approved',
+        title: 'Votre offre a été réactivée',
+        message: `${offer.title} a été réactivée`,
+        link: `/offers/${id}`,
         createdBy: adminId,
         metadata: { offerId: id },
       });

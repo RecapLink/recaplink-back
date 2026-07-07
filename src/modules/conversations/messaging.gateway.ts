@@ -12,10 +12,18 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { MessagingService } from './messaging.service';
 
+/** Maps a user role to the Socket.IO room used for role-wide broadcasts. */
+const ROOM_BY_ROLE: Record<string, string> = {
+  collecteur: 'collectors',
+  recycleur: 'recyclers',
+  vendeur_plastique: 'sellers',
+  admin: 'super-admins',
+  super_admin: 'super-admins',
+};
+
 @WebSocketGateway({ cors: { origin: '*' }, namespace: '/chat' })
 export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
-  private userSockets = new Map<string, string>();
 
   constructor(
     private readonly messagingService: MessagingService,
@@ -32,20 +40,34 @@ export class MessagingGateway implements OnGatewayConnection, OnGatewayDisconnec
       }
       const payload = this.jwtService.verify(token, { secret: this.config.get('jwt.secret') });
       socket.data.userId = payload.sub;
-      this.userSockets.set(payload.sub, socket.id);
+      socket.join(`user:${payload.sub}`);
+      const room = ROOM_BY_ROLE[payload.role];
+      if (room) socket.join(room);
     } catch {
       socket.disconnect();
     }
   }
 
-  handleDisconnect(socket: Socket) {
-    if (socket.data.userId) this.userSockets.delete(socket.data.userId);
+  handleDisconnect() {
+    // Socket.IO automatically removes a disconnected socket from all its rooms.
   }
 
-  /** Push an event directly to a single user's socket, if currently connected. */
+  /** Push an event to every socket a user currently has open (multi-tab/device safe). */
   emitToUser(userId: string, event: string, payload: unknown): void {
-    const socketId = this.userSockets.get(userId);
-    if (socketId) this.server.to(socketId).emit(event, payload);
+    this.server.to(`user:${userId}`).emit(event, payload);
+  }
+
+  /** Broadcast to a room (or set of rooms), optionally excluding one user (e.g. the actor). */
+  emitToRoom(room: string | string[], event: string, payload: unknown, exceptUserId?: string): void {
+    const target = exceptUserId ? this.server.to(room).except(`user:${exceptUserId}`) : this.server.to(room);
+    target.emit(event, payload);
+  }
+
+  /** Broadcast to every room mapped to the given roles, optionally excluding one user. */
+  emitToRoles(roles: string[], event: string, payload: unknown, exceptUserId?: string): void {
+    const rooms = [...new Set(roles.map(r => ROOM_BY_ROLE[r]).filter(Boolean))];
+    if (!rooms.length) return;
+    this.emitToRoom(rooms, event, payload, exceptUserId);
   }
 
   @SubscribeMessage('join_conversation')

@@ -42,8 +42,8 @@ export class BadgesController {
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @Post(':id/assign')
-  assign(@Param('id') id: string, @Body() body: { userId: string }) {
-    return this.svc.assign(id, body.userId);
+  assign(@Param('id') id: string, @Body() body: { userId: string }, @CurrentUser('sub') adminId: string) {
+    return this.svc.assign(id, body.userId, adminId);
   }
 
   @Get('user/me')

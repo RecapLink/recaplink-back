@@ -6,6 +6,7 @@ import { KnowledgeView, KnowledgeViewDocument } from './schemas/knowledge-view.s
 import { KnowledgeCategory, KnowledgeCategoryDocument } from './schemas/knowledge-category.schema';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Role } from '../../common/enums/role.enum';
 
 function slugify(text: string): string {
   return (
@@ -170,6 +171,16 @@ export class KnowledgeService {
       message: `${item.title?.fr || slug} a été publié`,
       link: '/admin/knowledge',
       createdBy: adminId,
+      metadata: { slug },
+    });
+
+    await this.notificationsService.notifyRoles({
+      roles: [Role.COLLECTEUR, Role.RECYCLEUR],
+      type: 'article_published',
+      title: 'Nouvel article disponible',
+      message: `${item.title?.fr || slug} est maintenant disponible`,
+      link: `/knowledge/${slug}`,
+      excludeUserId: adminId,
       metadata: { slug },
     });
 
