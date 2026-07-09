@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { KnowledgeService } from './knowledge.service';
-import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
+import { CreateKnowledgeDto, UpdateKnowledgeDto } from './dto/create-knowledge.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -50,7 +50,7 @@ export class KnowledgeController {
   @ApiOperation({ summary: 'Update a knowledge item' })
   @ApiResponse({ status: 200, description: 'Updated' })
   @ApiResponse({ status: 404, description: 'Not found' })
-  update(@Param('slug') slug: string, @Body() dto: Partial<CreateKnowledgeDto>, @CurrentUser('sub') adminId: string) {
+  update(@Param('slug') slug: string, @Body() dto: UpdateKnowledgeDto, @CurrentUser('sub') adminId: string) {
     return this.svc.update(slug, dto, adminId);
   }
 

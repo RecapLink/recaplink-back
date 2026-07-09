@@ -42,7 +42,6 @@ export class Knowledge {
   @Prop({ default: 0 }) durationMinutes?: number;
   @Prop() seoTitle?: string;
   @Prop() seoDescription?: string;
-  @Prop({ default: false }) featured: boolean;
   @Prop({ default: false }) recommended: boolean;
   @Prop({ default: false }) pinned: boolean;
   @Prop({ default: 0 }) pinOrder: number;
@@ -61,6 +60,6 @@ export const KnowledgeSchema = SchemaFactory.createForClass(Knowledge);
 KnowledgeSchema.index({ slug: 1 }, { unique: true });
 KnowledgeSchema.index({ type: 1, status: 1 });
 KnowledgeSchema.index({ category: 1 });
-KnowledgeSchema.index({ featured: 1 });
 KnowledgeSchema.index({ status: 1, publishedAt: -1 });
 KnowledgeSchema.index({ pinned: 1, pinOrder: 1 });
+KnowledgeSchema.index({ recommended: 1, status: 1 });

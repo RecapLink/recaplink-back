@@ -8,6 +8,7 @@ import { KnowledgeProgress, KnowledgeProgressDocument } from './schemas/knowledg
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Role } from '../../common/enums/role.enum';
+import { assertValidKnowledgeType } from './knowledge-type-rules.util';
 
 function slugify(text: string): string {
   return (
@@ -40,6 +41,7 @@ export class KnowledgeService {
     dateTo?: string;
     search?: string;
     pinned?: boolean;
+    recommended?: boolean;
     page?: number;
     limit?: number;
     admin?: boolean;
@@ -51,6 +53,7 @@ export class KnowledgeService {
     if (query.admin && query.status) filter.status = query.status;
     if (query.author) filter.author = new Types.ObjectId(query.author);
     if (query.pinned !== undefined) filter.pinned = query.pinned === true || (query.pinned as any) === 'true';
+    if (query.recommended !== undefined) filter.recommended = query.recommended === true || (query.recommended as any) === 'true';
     if (query.dateFrom || query.dateTo) {
       filter.createdAt = {};
       if (query.dateFrom) filter.createdAt.$gte = new Date(query.dateFrom);
@@ -90,15 +93,23 @@ export class KnowledgeService {
     return item;
   }
 
+  private async nextPinOrder(): Promise<number> {
+    const top = await this.model.findOne({ pinned: true }).sort({ pinOrder: -1 }).select('pinOrder').lean();
+    return (top?.pinOrder ?? -1) + 1;
+  }
+
   async create(dto: CreateKnowledgeDto, authorId: string): Promise<KnowledgeDocument> {
+    assertValidKnowledgeType(dto);
     const slug = dto.slug || slugify(dto.title?.fr || 'article');
     const publishedAt = dto.status === 'published' ? new Date() : undefined;
+    const pinOrder = dto.pinned && dto.pinOrder === undefined ? await this.nextPinOrder() : dto.pinOrder;
     const item = await this.model.create({
       ...dto,
       slug,
       author: new Types.ObjectId(authorId),
       ...(publishedAt ? { publishedAt } : {}),
       ...(dto.steps ? { stepCount: dto.steps.length } : {}),
+      ...(dto.pinned ? { pinOrder } : {}),
     });
 
     await this.notificationsService.notifyAdmins({
@@ -114,7 +125,17 @@ export class KnowledgeService {
   }
 
   async update(slug: string, dto: Partial<CreateKnowledgeDto>, adminId: string): Promise<KnowledgeDocument> {
-    const update = dto.steps ? { ...dto, stepCount: dto.steps.length } : dto;
+    const existing = await this.model.findOne({ slug }).lean();
+    if (!existing) throw new NotFoundException('Knowledge item not found');
+
+    const merged = { ...existing, ...dto };
+    assertValidKnowledgeType(merged);
+
+    const update: Record<string, unknown> = dto.steps ? { ...dto, stepCount: dto.steps.length } : { ...dto };
+    if (dto.pinned === true && dto.pinOrder === undefined && !existing.pinned) {
+      update.pinOrder = await this.nextPinOrder();
+    }
+
     const item = await this.model.findOneAndUpdate({ slug }, update, { new: true });
     if (!item) throw new NotFoundException('Knowledge item not found');
 
@@ -210,8 +231,7 @@ export class KnowledgeService {
   }
 
   async pin(slug: string, adminId: string): Promise<KnowledgeDocument> {
-    const top = await this.model.findOne({ pinned: true }).sort({ pinOrder: -1 }).select('pinOrder').lean();
-    const pinOrder = (top?.pinOrder || 0) + 1;
+    const pinOrder = await this.nextPinOrder();
     const item = await this.model.findOneAndUpdate({ slug }, { pinned: true, pinOrder }, { new: true });
     if (!item) throw new NotFoundException('Knowledge item not found');
 

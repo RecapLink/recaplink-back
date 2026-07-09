@@ -1,7 +1,7 @@
 import { IsString, IsEnum, IsOptional, IsArray, IsBoolean, IsNumber, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/mapped-types';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { TypeConditionalString, TypeConditionalArray, RequiredI18nFrForTypes, ValidTutorialSteps } from './type-conditional.validators';
 
 class I18nDto {
   @ApiPropertyOptional() @IsOptional() @IsString() fr?: string;
@@ -25,10 +25,7 @@ class KnowledgeStepDto {
 export class CreateKnowledgeDto {
   @ApiProperty({ type: I18nDto }) @ValidateNested() @Type(() => I18nDto) title: I18nDto;
   @ApiPropertyOptional({ type: I18nDto }) @IsOptional() @ValidateNested() @Type(() => I18nDto) subtitle?: I18nDto;
-  @ApiProperty({ type: I18nDto })
-  @ValidateNested() @Type(() => I18nDto)
-  @RequiredI18nFrForTypes(['article', 'video'], 'Le contenu (FR) est requis pour ce type de contenu')
-  content: I18nDto;
+  @ApiProperty({ type: I18nDto }) @ValidateNested() @Type(() => I18nDto) content: I18nDto;
   @ApiProperty({ enum: ['article', 'video', 'tutorial'] })
   @IsEnum(['article', 'video', 'tutorial'])
   type: string;
@@ -40,38 +37,20 @@ export class CreateKnowledgeDto {
   @ApiPropertyOptional() @IsOptional() @IsString() coverImageUrl?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() bannerUrl?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() coverColor?: string;
-  @ApiPropertyOptional()
-  @TypeConditionalString({
-    requiredFor: ['video'],
-    forbiddenFor: ['article', 'tutorial'],
-    requiredMessage: 'La vidéo est requise pour un contenu de type Vidéo',
-    forbiddenMessage: "La vidéo n'est autorisée que pour le type Vidéo",
-  })
-  videoUrl?: string;
-  @ApiPropertyOptional()
-  @TypeConditionalString({
-    forbiddenFor: ['video', 'tutorial'],
-    forbiddenMessage: "Le PDF n'est autorisé que pour le type Article",
-  })
-  pdfUrl?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() videoUrl?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() pdfUrl?: string;
   @ApiPropertyOptional({ type: [AttachmentDto] })
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => AttachmentDto)
   attachments?: AttachmentDto[];
-  @ApiPropertyOptional({ type: [String] })
-  @TypeConditionalArray({
-    forbiddenFor: ['video', 'tutorial'],
-    forbiddenMessage: "Les images ne sont autorisées que pour le type Article",
-  })
-  images?: string[];
+  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @IsString({ each: true }) images?: string[];
   @ApiPropertyOptional() @IsOptional() @IsNumber() durationMinutes?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() seoTitle?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() seoDescription?: string;
-  @ApiPropertyOptional() @IsOptional() @IsBoolean() featured?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() recommended?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() pinned?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() pinOrder?: number;
   @ApiPropertyOptional({ type: [KnowledgeStepDto] })
-  @Type(() => KnowledgeStepDto)
-  @ValidTutorialSteps()
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => KnowledgeStepDto)
   steps?: KnowledgeStepDto[];
   @ApiPropertyOptional() @IsOptional() @IsString() videoDuration?: string;
   @ApiPropertyOptional({ enum: ['draft', 'published', 'archived'] })
@@ -79,3 +58,5 @@ export class CreateKnowledgeDto {
   status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() slug?: string;
 }
+
+export class UpdateKnowledgeDto extends PartialType(CreateKnowledgeDto) {}
