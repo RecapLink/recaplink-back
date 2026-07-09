@@ -18,7 +18,12 @@ export class BadgesService {
   }
 
   async create(dto: any, adminId: string): Promise<BadgeDocument> {
-    const badge = await this.badgeModel.create(dto);
+    const badge = await this.badgeModel.create({
+      ...dto,
+      ...(dto.requiredKnowledge
+        ? { requiredKnowledge: dto.requiredKnowledge.map((id: string) => new Types.ObjectId(id)) }
+        : {}),
+    });
 
     await this.notificationsService.notifyAdmins({
       type: 'badge_created',
@@ -33,7 +38,13 @@ export class BadgesService {
   }
 
   async update(id: string, dto: any, adminId: string): Promise<BadgeDocument> {
-    const badge = await this.badgeModel.findByIdAndUpdate(new Types.ObjectId(id), dto, { new: true });
+    const update = {
+      ...dto,
+      ...(dto.requiredKnowledge
+        ? { requiredKnowledge: dto.requiredKnowledge.map((kid: string) => new Types.ObjectId(kid)) }
+        : {}),
+    };
+    const badge = await this.badgeModel.findByIdAndUpdate(new Types.ObjectId(id), update, { new: true });
     if (!badge) throw new NotFoundException('Badge not found');
 
     await this.notificationsService.notifyAdmins({
@@ -61,13 +72,20 @@ export class BadgesService {
     });
   }
 
-  async assign(badgeId: string, userId: string, adminId?: string): Promise<UserBadgeDocument> {
+  async assign(badgeId: string, userId: string, adminId?: string): Promise<UserBadgeDocument | null> {
     const badge = await this.badgeModel.findById(new Types.ObjectId(badgeId));
     if (!badge) throw new NotFoundException('Badge not found');
-    const ub = await this.userBadgeModel.create({
-      badge: new Types.ObjectId(badgeId),
-      user: new Types.ObjectId(userId),
-    });
+
+    let ub: UserBadgeDocument;
+    try {
+      ub = await this.userBadgeModel.create({
+        badge: new Types.ObjectId(badgeId),
+        user: new Types.ObjectId(userId),
+      });
+    } catch (err: any) {
+      if (err?.code === 11000) return null; // user already has this badge
+      throw err;
+    }
     await this.badgeModel.findByIdAndUpdate(badgeId, { $inc: { userCount: 1 } });
 
     await this.notificationsService.create({
@@ -97,5 +115,9 @@ export class BadgesService {
       .find({ user: new Types.ObjectId(userId) })
       .populate('badge')
       .lean();
+  }
+
+  findAutoAssignableBadgesFor(knowledgeId: string): Promise<BadgeDocument[]> {
+    return this.badgeModel.find({ autoAssign: true, requiredKnowledge: new Types.ObjectId(knowledgeId) });
   }
 }

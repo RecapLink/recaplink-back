@@ -93,4 +93,26 @@ export class KnowledgeController {
   archive(@Param('slug') slug: string, @CurrentUser('sub') adminId: string) {
     return this.svc.archive(slug, adminId);
   }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @ApiBearerAuth('access-token')
+  @Patch(':slug/pin')
+  @ApiOperation({ summary: 'Pin a knowledge item (appears first)' })
+  @ApiResponse({ status: 200, description: 'Pinned' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  pin(@Param('slug') slug: string, @CurrentUser('sub') adminId: string) {
+    return this.svc.pin(slug, adminId);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @ApiBearerAuth('access-token')
+  @Patch(':slug/unpin')
+  @ApiOperation({ summary: 'Unpin a knowledge item' })
+  @ApiResponse({ status: 200, description: 'Unpinned' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  unpin(@Param('slug') slug: string, @CurrentUser('sub') adminId: string) {
+    return this.svc.unpin(slug, adminId);
+  }
 }

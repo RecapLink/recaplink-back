@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Knowledge, KnowledgeDocument } from './schemas/knowledge.schema';
 import { KnowledgeView, KnowledgeViewDocument } from './schemas/knowledge-view.schema';
 import { KnowledgeCategory, KnowledgeCategoryDocument } from './schemas/knowledge-category.schema';
+import { KnowledgeProgress, KnowledgeProgressDocument } from './schemas/knowledge-progress.schema';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Role } from '../../common/enums/role.enum';
@@ -25,6 +26,7 @@ export class KnowledgeService {
     @InjectModel(Knowledge.name) private readonly model: Model<KnowledgeDocument>,
     @InjectModel(KnowledgeView.name) private readonly viewModel: Model<KnowledgeViewDocument>,
     @InjectModel(KnowledgeCategory.name) private readonly categoryModel: Model<KnowledgeCategoryDocument>,
+    @InjectModel(KnowledgeProgress.name) private readonly progressModel: Model<KnowledgeProgressDocument>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -37,6 +39,7 @@ export class KnowledgeService {
     dateFrom?: string;
     dateTo?: string;
     search?: string;
+    pinned?: boolean;
     page?: number;
     limit?: number;
     admin?: boolean;
@@ -47,6 +50,7 @@ export class KnowledgeService {
     if (query.difficulty) filter.difficulty = query.difficulty;
     if (query.admin && query.status) filter.status = query.status;
     if (query.author) filter.author = new Types.ObjectId(query.author);
+    if (query.pinned !== undefined) filter.pinned = query.pinned === true || (query.pinned as any) === 'true';
     if (query.dateFrom || query.dateTo) {
       filter.createdAt = {};
       if (query.dateFrom) filter.createdAt.$gte = new Date(query.dateFrom);
@@ -62,7 +66,7 @@ export class KnowledgeService {
       this.model
         .find(filter)
         .populate('author', 'fullName avatarUrl')
-        .sort({ createdAt: -1 })
+        .sort({ pinned: -1, pinOrder: 1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -94,6 +98,7 @@ export class KnowledgeService {
       slug,
       author: new Types.ObjectId(authorId),
       ...(publishedAt ? { publishedAt } : {}),
+      ...(dto.steps ? { stepCount: dto.steps.length } : {}),
     });
 
     await this.notificationsService.notifyAdmins({
@@ -109,7 +114,8 @@ export class KnowledgeService {
   }
 
   async update(slug: string, dto: Partial<CreateKnowledgeDto>, adminId: string): Promise<KnowledgeDocument> {
-    const item = await this.model.findOneAndUpdate({ slug }, dto, { new: true });
+    const update = dto.steps ? { ...dto, stepCount: dto.steps.length } : dto;
+    const item = await this.model.findOneAndUpdate({ slug }, update, { new: true });
     if (!item) throw new NotFoundException('Knowledge item not found');
 
     await this.notificationsService.notifyAdmins({
@@ -203,25 +209,81 @@ export class KnowledgeService {
     return item;
   }
 
+  async pin(slug: string, adminId: string): Promise<KnowledgeDocument> {
+    const top = await this.model.findOne({ pinned: true }).sort({ pinOrder: -1 }).select('pinOrder').lean();
+    const pinOrder = (top?.pinOrder || 0) + 1;
+    const item = await this.model.findOneAndUpdate({ slug }, { pinned: true, pinOrder }, { new: true });
+    if (!item) throw new NotFoundException('Knowledge item not found');
+
+    await this.notificationsService.notifyAdmins({
+      type: 'article_pinned',
+      title: 'Fiche épinglée',
+      message: `${item.title?.fr || slug} a été épinglée`,
+      link: '/admin/knowledge',
+      createdBy: adminId,
+      metadata: { slug },
+    });
+
+    return item;
+  }
+
+  async unpin(slug: string, adminId: string): Promise<KnowledgeDocument> {
+    const item = await this.model.findOneAndUpdate({ slug }, { pinned: false }, { new: true });
+    if (!item) throw new NotFoundException('Knowledge item not found');
+
+    await this.notificationsService.notifyAdmins({
+      type: 'article_unpinned',
+      title: 'Fiche désépinglée',
+      message: `${item.title?.fr || slug} n'est plus épinglée`,
+      link: '/admin/knowledge',
+      createdBy: adminId,
+      metadata: { slug },
+    });
+
+    return item;
+  }
+
   async getStatistics() {
-    const [byType, byStatus, totals, mostViewed, topCategoriesAgg] = await Promise.all([
-      this.model.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
-      this.model.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
-      this.model.aggregate([
-        { $group: { _id: null, totalViews: { $sum: '$viewCount' }, totalLikes: { $sum: '$likeCount' } } },
-      ]),
-      this.model
-        .find({ status: 'published' })
-        .sort({ viewCount: -1 })
-        .limit(5)
-        .select('title slug type viewCount likeCount coverImageUrl')
-        .lean(),
-      this.model.aggregate([
-        { $group: { _id: '$category', count: { $sum: 1 }, views: { $sum: '$viewCount' } } },
-        { $sort: { views: -1 } },
-        { $limit: 5 },
-      ]),
-    ]);
+    const [byType, byStatus, totals, mostViewed, topCategoriesAgg, completionAgg, mostCompletedTutorialsAgg] =
+      await Promise.all([
+        this.model.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
+        this.model.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+        this.model.aggregate([
+          { $group: { _id: null, totalViews: { $sum: '$viewCount' }, totalLikes: { $sum: '$likeCount' } } },
+        ]),
+        this.model
+          .find({ status: 'published' })
+          .sort({ viewCount: -1 })
+          .limit(5)
+          .select('title slug type viewCount likeCount coverImageUrl')
+          .lean(),
+        this.model.aggregate([
+          { $group: { _id: '$category', count: { $sum: 1 }, views: { $sum: '$viewCount' } } },
+          { $sort: { views: -1 } },
+          { $limit: 5 },
+        ]),
+        this.progressModel.aggregate([
+          {
+            $group: {
+              _id: null,
+              started: { $sum: 1 },
+              completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+            },
+          },
+        ]),
+        this.progressModel.aggregate([
+          { $match: { status: 'completed' } },
+          { $group: { _id: '$knowledge', completions: { $sum: 1 } } },
+          { $sort: { completions: -1 } },
+          { $limit: 5 },
+          {
+            $lookup: { from: 'knowledges', localField: '_id', foreignField: '_id', as: 'knowledge' },
+          },
+          { $unwind: '$knowledge' },
+          { $match: { 'knowledge.type': 'tutorial' } },
+          { $project: { title: '$knowledge.title', slug: '$knowledge.slug', completions: 1 } },
+        ]),
+      ]);
 
     const typeCounts: Record<string, number> = { article: 0, video: 0, tutorial: 0, guide: 0, chatbot: 0 };
     byType.forEach((t: any) => { if (t._id) typeCounts[t._id] = t.count; });
@@ -261,16 +323,23 @@ export class KnowledgeService {
         views: c.views,
       }));
 
+    const started = completionAgg[0]?.started || 0;
+    const totalCompletions = completionAgg[0]?.completed || 0;
+    const averageCompletionRate = started ? Math.round((totalCompletions / started) * 100) : 0;
+
     return {
       totals: {
         ...typeCounts,
         ...statusCounts,
         totalViews: totals[0]?.totalViews || 0,
         totalLikes: totals[0]?.totalLikes || 0,
+        totalCompletions,
+        averageCompletionRate,
       },
       monthlyViews,
       mostViewed,
       topCategories,
+      mostCompletedTutorials: mostCompletedTutorialsAgg,
     };
   }
 }

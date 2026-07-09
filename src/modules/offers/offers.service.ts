@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Offer, OfferDocument } from './schemas/offer.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { UpdateOfferDto } from './dto/update-offer.dto';
 import { OfferQueryDto } from './dto/offer-query.dto';
@@ -15,17 +16,22 @@ function generateRef(): string {
   return `RL-${year}-${rand}`;
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 @Injectable()
 export class OffersService {
   constructor(
     @InjectModel(Offer.name) private readonly model: Model<OfferDocument>,
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
   async findAll(query: OfferQueryDto) {
     const filter: any = {};
     if (query.plasticType) filter.plasticType = query.plasticType;
-    if (query.zone) filter['location.zone'] = new RegExp(query.zone, 'i');
+    if (query.zone) filter['location.zone'] = new RegExp(escapeRegex(query.zone), 'i');
     if (query.status === 'all') {
       // no status filter — used by the admin panel to show every offer regardless of status
     } else if (query.status) {
@@ -33,11 +39,23 @@ export class OffersService {
     } else {
       filter.status = OfferStatus.ACTIVE;
     }
-    if (query.search)
+    if (query.search) {
+      const regex = new RegExp(escapeRegex(query.search), 'i');
+      const matchingOwners = await this.userModel
+        .find({ $or: [{ fullName: regex }, { username: regex }] })
+        .select('_id')
+        .lean();
+
       filter.$or = [
-        { title: new RegExp(query.search, 'i') },
-        { description: new RegExp(query.search, 'i') },
+        { title: regex },
+        { description: regex },
+        { refCode: regex },
+        { plasticType: regex },
+        { 'location.city': regex },
+        { 'location.zone': regex },
+        ...(matchingOwners.length ? [{ owner: { $in: matchingOwners.map(u => u._id) } }] : []),
       ];
+    }
 
     const page = query.page || 1;
     const limit = query.limit || 10;

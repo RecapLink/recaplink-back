@@ -20,6 +20,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { AnalyticsModule } from './modules/stats/analytics.module';
 import { ChatbotModule } from './modules/chatbot/chatbot.module';
 import { SiteSettingsModule } from './modules/site-settings/site-settings.module';
+import { LearningPathsModule } from './modules/learning-paths/learning-paths.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { SiteSettingsModule } from './modules/site-settings/site-settings.module
     AnalyticsModule,
     ChatbotModule,
     SiteSettingsModule,
+    LearningPathsModule,
   ],
   providers: [
     {

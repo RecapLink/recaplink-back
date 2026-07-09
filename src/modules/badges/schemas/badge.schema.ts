@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type BadgeDocument = Badge & Document;
 
@@ -21,6 +21,7 @@ export class Badge {
   @Prop({ default: 0 }) criteriaValue: number;
   @Prop({ default: false }) autoAssign: boolean;
   @Prop({ default: 0 }) userCount: number;
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Knowledge' }], default: [] }) requiredKnowledge: Types.ObjectId[];
 }
 
 export const BadgeSchema = SchemaFactory.createForClass(Badge);

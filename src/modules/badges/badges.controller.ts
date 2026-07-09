@@ -19,28 +19,28 @@ export class BadgesController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @Post()
   create(@Body() dto: any, @CurrentUser('sub') adminId: string) {
     return this.svc.create(dto, adminId);
   }
 
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: any, @CurrentUser('sub') adminId: string) {
     return this.svc.update(id, dto, adminId);
   }
 
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @Delete(':id')
   remove(@Param('id') id: string, @CurrentUser('sub') adminId: string) {
     return this.svc.remove(id, adminId);
   }
 
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @Post(':id/assign')
   assign(@Param('id') id: string, @Body() body: { userId: string }, @CurrentUser('sub') adminId: string) {
     return this.svc.assign(id, body.userId, adminId);

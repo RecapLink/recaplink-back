@@ -14,6 +14,12 @@ class AttachmentDto {
   @ApiProperty() @IsString() mimeType: string;
 }
 
+class KnowledgeStepDto {
+  @ApiProperty({ type: I18nDto }) @ValidateNested() @Type(() => I18nDto) title: I18nDto;
+  @ApiPropertyOptional({ type: I18nDto }) @IsOptional() @ValidateNested() @Type(() => I18nDto) description?: I18nDto;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() order?: number;
+}
+
 export class CreateKnowledgeDto {
   @ApiProperty({ type: I18nDto }) @ValidateNested() @Type(() => I18nDto) title: I18nDto;
   @ApiPropertyOptional({ type: I18nDto }) @IsOptional() @ValidateNested() @Type(() => I18nDto) subtitle?: I18nDto;
@@ -39,6 +45,10 @@ export class CreateKnowledgeDto {
   @ApiPropertyOptional() @IsOptional() @IsString() seoDescription?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() featured?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() recommended?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() pinned?: boolean;
+  @ApiPropertyOptional({ type: [KnowledgeStepDto] })
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => KnowledgeStepDto)
+  steps?: KnowledgeStepDto[];
   @ApiPropertyOptional() @IsOptional() @IsString() videoDuration?: string;
   @ApiPropertyOptional({ enum: ['draft', 'published', 'archived'] })
   @IsOptional() @IsEnum(['draft', 'published', 'archived'])

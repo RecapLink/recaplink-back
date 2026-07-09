@@ -15,6 +15,12 @@ class Attachment {
   @Prop() mimeType: string;
 }
 
+class KnowledgeStep {
+  @Prop({ type: I18nField }) title: I18nField;
+  @Prop({ type: I18nField }) description: I18nField;
+  @Prop({ default: 0 }) order: number;
+}
+
 @Schema({ timestamps: true })
 export class Knowledge {
   @Prop({ required: true, unique: true }) slug: string;
@@ -36,6 +42,9 @@ export class Knowledge {
   @Prop() seoDescription?: string;
   @Prop({ default: false }) featured: boolean;
   @Prop({ default: false }) recommended: boolean;
+  @Prop({ default: false }) pinned: boolean;
+  @Prop({ default: 0 }) pinOrder: number;
+  @Prop({ type: [KnowledgeStep], default: [] }) steps: KnowledgeStep[];
   @Prop() publishedAt?: Date;
   @Prop({ type: Types.ObjectId, ref: 'User' }) author: Types.ObjectId;
   @Prop({ enum: ['draft', 'published', 'archived'], default: 'draft' }) status: string;
@@ -52,3 +61,4 @@ KnowledgeSchema.index({ type: 1, status: 1 });
 KnowledgeSchema.index({ category: 1 });
 KnowledgeSchema.index({ featured: 1 });
 KnowledgeSchema.index({ status: 1, publishedAt: -1 });
+KnowledgeSchema.index({ pinned: 1, pinOrder: 1 });
