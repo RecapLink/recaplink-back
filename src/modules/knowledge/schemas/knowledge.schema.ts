@@ -19,6 +19,7 @@ class KnowledgeStep {
   @Prop({ type: I18nField }) title: I18nField;
   @Prop({ type: I18nField }) description: I18nField;
   @Prop({ default: 0 }) order: number;
+  @Prop() imageUrl?: string;
 }
 
 @Schema({ timestamps: true })
@@ -27,7 +28,7 @@ export class Knowledge {
   @Prop({ type: I18nField }) title: I18nField;
   @Prop({ type: I18nField }) subtitle?: I18nField;
   @Prop({ type: I18nField }) content: I18nField;
-  @Prop({ required: true, enum: ['article', 'video', 'tutorial', 'guide', 'chatbot'] }) type: string;
+  @Prop({ required: true, enum: ['article', 'video', 'tutorial'] }) type: string;
   @Prop({ required: true }) category: string;
   @Prop({ enum: ['debutant', 'intermediaire', 'avance'] }) difficulty?: string;
   @Prop({ type: [String], default: [] }) tags: string[];
@@ -37,6 +38,7 @@ export class Knowledge {
   @Prop() videoUrl?: string;
   @Prop() pdfUrl?: string;
   @Prop({ type: [Attachment], default: [] }) attachments: Attachment[];
+  @Prop({ type: [String], default: [] }) images: string[];
   @Prop({ default: 0 }) durationMinutes?: number;
   @Prop() seoTitle?: string;
   @Prop() seoDescription?: string;

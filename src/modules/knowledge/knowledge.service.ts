@@ -285,7 +285,7 @@ export class KnowledgeService {
         ]),
       ]);
 
-    const typeCounts: Record<string, number> = { article: 0, video: 0, tutorial: 0, guide: 0, chatbot: 0 };
+    const typeCounts: Record<string, number> = { article: 0, video: 0, tutorial: 0 };
     byType.forEach((t: any) => { if (t._id) typeCounts[t._id] = t.count; });
 
     const statusCounts: Record<string, number> = { draft: 0, published: 0, archived: 0 };

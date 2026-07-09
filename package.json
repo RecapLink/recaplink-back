@@ -10,7 +10,8 @@
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "seed:admin": "ts-node scripts/seed-super-admin.ts"
+    "seed:admin": "ts-node scripts/seed-super-admin.ts",
+    "migrate:knowledge-types": "ts-node scripts/migrate-knowledge-legacy-types.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
