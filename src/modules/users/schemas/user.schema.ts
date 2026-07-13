@@ -4,6 +4,7 @@ import { Role } from '../../../common/enums/role.enum';
 import { UserStatus } from '../../../common/enums/user-status.enum';
 import { PlasticType } from '../../../common/enums/plastic-type.enum';
 import { LegalStatus } from '../../../common/enums/legal-status.enum';
+import { Language } from '../../../common/enums/language.enum';
 
 class NotifPrefs {
   @Prop({ default: true }) newSignalement: boolean;
@@ -70,6 +71,9 @@ export class User {
 
   @Prop({ default: false })
   verified: boolean;
+
+  @Prop({ enum: Language, default: Language.FR })
+  preferredLanguage: Language;
 
   @Prop({ default: false })
   isDeleted: boolean;

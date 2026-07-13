@@ -12,6 +12,7 @@ import {
 import { Role } from '../../../common/enums/role.enum';
 import { PlasticType } from '../../../common/enums/plastic-type.enum';
 import { LegalStatus } from '../../../common/enums/legal-status.enum';
+import { Language } from '../../../common/enums/language.enum';
 
 export class CreateUserDto {
   @IsEmail()
@@ -75,4 +76,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   canSell?: boolean;
+
+  @IsOptional()
+  @IsEnum(Language)
+  preferredLanguage?: Language;
 }

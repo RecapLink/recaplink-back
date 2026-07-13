@@ -47,6 +47,15 @@ export class UsersController {
     return this.usersService.findById(id.toString());
   }
 
+  @Patch('me')
+  updateMe(
+    @Body() dto: UpdateUserDto,
+    @CurrentUser('sub') requesterId: string,
+    @CurrentUser('role') requesterRole: Role,
+  ) {
+    return this.usersService.update(requesterId, dto, requesterId, requesterRole);
+  }
+
   @Patch(':id')
   update(
     @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
