@@ -3,6 +3,7 @@ import { Document, Types } from 'mongoose';
 import { Role } from '../../../common/enums/role.enum';
 import { UserStatus } from '../../../common/enums/user-status.enum';
 import { PlasticType } from '../../../common/enums/plastic-type.enum';
+import { LegalStatus } from '../../../common/enums/legal-status.enum';
 
 class NotifPrefs {
   @Prop({ default: true }) newSignalement: boolean;
@@ -52,6 +53,30 @@ export class User {
   @Prop({ type: [String], enum: PlasticType, default: [] })
   plasticTypes: PlasticType[];
 
+  @Prop({ required: true, enum: LegalStatus, default: LegalStatus.PARTICULIER })
+  legalStatus: LegalStatus;
+
+  @Prop({ default: true })
+  canBuy: boolean;
+
+  @Prop({ default: true })
+  canSell: boolean;
+
+  @Prop({ trim: true })
+  registreCommerce: string;
+
+  @Prop({ trim: true })
+  numeroFiscal: string;
+
+  @Prop({ default: false })
+  verified: boolean;
+
+  @Prop({ default: false })
+  isDeleted: boolean;
+
+  @Prop()
+  deletedAt: Date;
+
   @Prop()
   refreshTokenHash: string;
 
@@ -86,6 +111,7 @@ UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ username: 1 }, { unique: true });
 UserSchema.index({ role: 1, status: 1 });
 UserSchema.index({ zone: 1 });
+UserSchema.index({ isDeleted: 1 });
 
 UserSchema.set('toJSON', {
   transform: (_doc, ret) => {

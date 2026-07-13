@@ -1,7 +1,8 @@
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Role } from '../../../common/enums/role.enum';
 import { UserStatus } from '../../../common/enums/user-status.enum';
+import { LegalStatus } from '../../../common/enums/legal-status.enum';
 
 export class UserQueryDto {
   @IsOptional()
@@ -24,6 +25,25 @@ export class UserQueryDto {
   @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
+
+  @IsOptional()
+  @IsEnum(LegalStatus)
+  legalStatus?: LegalStatus;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  verified?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  canBuy?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  canSell?: boolean;
 
   @IsOptional()
   @IsString()

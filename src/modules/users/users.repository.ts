@@ -12,7 +12,7 @@ export class UsersRepository {
   }
 
   async findById(id: string | Types.ObjectId): Promise<UserDocument | null> {
-    return this.userModel.findById(id).exec();
+    return this.userModel.findOne({ _id: id, isDeleted: { $ne: true } }).exec();
   }
 
   async findOne(filter: FilterQuery<UserDocument>): Promise<UserDocument | null> {
@@ -46,10 +46,6 @@ export class UsersRepository {
     return this.userModel
       .findByIdAndUpdate(id, update, { new: true })
       .exec();
-  }
-
-  async deleteById(id: string | Types.ObjectId): Promise<void> {
-    await this.userModel.findByIdAndDelete(id).exec();
   }
 
   async findByResetToken(hashedToken: string): Promise<UserDocument | null> {

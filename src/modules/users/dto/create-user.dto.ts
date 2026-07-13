@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -6,9 +7,11 @@ import {
   IsString,
   MinLength,
   Matches,
+  ValidateIf,
 } from 'class-validator';
 import { Role } from '../../../common/enums/role.enum';
 import { PlasticType } from '../../../common/enums/plastic-type.enum';
+import { LegalStatus } from '../../../common/enums/legal-status.enum';
 
 export class CreateUserDto {
   @IsEmail()
@@ -32,6 +35,19 @@ export class CreateUserDto {
   @IsEnum(Role)
   role: Role;
 
+  @IsEnum(LegalStatus)
+  legalStatus: LegalStatus;
+
+  @ValidateIf(o => o.legalStatus === LegalStatus.PROFESSIONNEL && !o.numeroFiscal)
+  @IsNotEmpty({ message: 'registreCommerce or numeroFiscal is required for professionnel accounts' })
+  @IsString()
+  registreCommerce?: string;
+
+  @ValidateIf(o => o.legalStatus === LegalStatus.PROFESSIONNEL && !o.registreCommerce)
+  @IsNotEmpty({ message: 'registreCommerce or numeroFiscal is required for professionnel accounts' })
+  @IsString()
+  numeroFiscal?: string;
+
   @IsOptional()
   @IsString()
   phone?: string;
@@ -47,4 +63,16 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(PlasticType, { each: true })
   plasticTypes?: PlasticType[];
+
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  canBuy?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  canSell?: boolean;
 }

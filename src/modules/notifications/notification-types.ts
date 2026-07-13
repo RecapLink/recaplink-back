@@ -9,8 +9,6 @@ interface NotificationMeta {
 /** Single source of truth for icon/color/category per notification type, so callers only pass a `type`. */
 export const NOTIFICATION_META: Record<string, NotificationMeta> = {
   // Users
-  new_collecteur: { category: 'users', icon: 'UserPlus', color: '#3b82f6' },
-  new_recycleur: { category: 'users', icon: 'UserPlus', color: '#3b82f6' },
   new_user: { category: 'users', icon: 'UserPlus', color: '#3b82f6' },
   user_verified: { category: 'users', icon: 'UserCheck', color: '#4d9538' },
   user_updated: { category: 'users', icon: 'User', color: '#3b82f6' },

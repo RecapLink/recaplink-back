@@ -3,11 +3,13 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
 import { UserDocument } from './schemas/user.schema';
 import { UserStatus } from '../../common/enums/user-status.enum';
@@ -24,7 +26,21 @@ export class UsersService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async create(dto: CreateUserDto): Promise<UserDocument> {
+  async create(dto: CreateUserDto, requesterRole?: Role): Promise<UserDocument> {
+    if (dto.role === Role.SUPER_ADMIN) {
+      throw new ForbiddenException('The Super Admin cannot be created via the API');
+    }
+    if (dto.role === Role.ADMIN && requesterRole !== Role.SUPER_ADMIN) {
+      throw new ForbiddenException('Only the Super Admin can create Admin accounts');
+    }
+    if ((dto.role ?? Role.USER) === Role.USER) {
+      const canBuy = dto.canBuy ?? true;
+      const canSell = dto.canSell ?? true;
+      if (!canBuy && !canSell) {
+        throw new BadRequestException('A user must be able to buy, sell, or both');
+      }
+    }
+
     const existing = await this.usersRepo.findByEmail(dto.email);
     if (existing) throw new ConflictException('email already exists');
 
@@ -38,9 +54,13 @@ export class UsersService {
   async findAll(query: UserQueryDto): Promise<Paginated<UserDocument>> {
     const { skip, limit, page } = getPaginationParams(query.page, query.limit);
 
-    const filter: Record<string, unknown> = {};
+    const filter: Record<string, unknown> = { isDeleted: { $ne: true } };
     if (query.role) filter.role = query.role;
     if (query.status) filter.status = query.status;
+    if (query.legalStatus) filter.legalStatus = query.legalStatus;
+    if (query.verified !== undefined) filter.verified = query.verified;
+    if (query.canBuy !== undefined) filter.canBuy = query.canBuy;
+    if (query.canSell !== undefined) filter.canSell = query.canSell;
     if (query.zone) filter.zone = query.zone;
     if (query.search) {
       filter.$or = [
@@ -73,6 +93,13 @@ export class UsersService {
     if (requesterId !== id && requesterRole !== Role.ADMIN && requesterRole !== Role.SUPER_ADMIN) {
       throw new ForbiddenException('Cannot update another user');
     }
+
+    const target = await this.usersRepo.findById(id);
+    if (!target) throw new NotFoundException('User not found');
+    if (target.role === Role.SUPER_ADMIN && dto.email !== undefined && dto.email !== target.email) {
+      throw new ForbiddenException('Cannot change the Super Admin email');
+    }
+
     const user = await this.usersRepo.updateById(id, { $set: dto });
     if (!user) throw new NotFoundException('User not found');
 
@@ -80,7 +107,7 @@ export class UsersService {
       type: 'user_updated',
       title: 'Compte mis à jour',
       message: `Le compte de ${user.fullName} a été modifié`,
-      link: '/admin/collectors',
+      link: '/admin/users',
       createdBy: requesterId,
       metadata: { userId: id },
     });
@@ -91,6 +118,9 @@ export class UsersService {
   async updateStatus(id: string, status: UserStatus, adminId: string): Promise<UserDocument> {
     const previous = await this.usersRepo.findById(id);
     if (!previous) throw new NotFoundException('User not found');
+    if (previous.role === Role.SUPER_ADMIN && status !== UserStatus.ACTIVE) {
+      throw new ForbiddenException('Cannot suspend the Super Admin');
+    }
 
     const user = await this.usersRepo.updateById(id, { $set: { status } });
     if (!user) throw new NotFoundException('User not found');
@@ -113,7 +143,7 @@ export class UsersService {
         type,
         title,
         message: `Le compte de ${user.fullName} est maintenant ${status}`,
-        link: '/admin/collectors',
+        link: '/admin/users',
         createdBy: adminId,
         metadata: { userId: id },
       });
@@ -147,7 +177,10 @@ export class UsersService {
   async remove(id: string, adminId: string): Promise<void> {
     const user = await this.usersRepo.findById(id);
     if (!user) throw new NotFoundException('User not found');
-    await this.usersRepo.deleteById(id);
+    if (user.role === Role.SUPER_ADMIN) {
+      throw new ForbiddenException('Cannot delete the Super Admin');
+    }
+    await this.usersRepo.updateById(id, { $set: { isDeleted: true, deletedAt: new Date() } });
 
     await this.notificationsService.notifyAdmins({
       type: 'user_deleted',
@@ -156,6 +189,48 @@ export class UsersService {
       createdBy: adminId,
       metadata: { userId: id },
     });
+  }
+
+  async adminUpdate(id: string, dto: AdminUpdateUserDto, requesterRole: Role): Promise<UserDocument> {
+    const target = await this.usersRepo.findById(id);
+    if (!target) throw new NotFoundException('User not found');
+
+    if (target.role === Role.SUPER_ADMIN) {
+      if (dto.role !== undefined && dto.role !== Role.SUPER_ADMIN) {
+        throw new ForbiddenException('Cannot change the Super Admin role');
+      }
+      if (dto.email !== undefined && dto.email !== target.email) {
+        throw new ForbiddenException('Cannot change the Super Admin email');
+      }
+      if (dto.status !== undefined && dto.status !== UserStatus.ACTIVE) {
+        throw new ForbiddenException('Cannot suspend the Super Admin');
+      }
+    }
+
+    if (dto.role === Role.SUPER_ADMIN && target.role !== Role.SUPER_ADMIN) {
+      throw new ForbiddenException('The Super Admin cannot be assigned via the API');
+    }
+
+    const promotingOrDemotingAdmin =
+      dto.role !== undefined &&
+      dto.role !== target.role &&
+      (dto.role === Role.ADMIN || target.role === Role.ADMIN);
+    if (promotingOrDemotingAdmin && requesterRole !== Role.SUPER_ADMIN) {
+      throw new ForbiddenException('Only the Super Admin can promote or demote an Admin');
+    }
+
+    const nextRole = dto.role ?? target.role;
+    if (nextRole === Role.USER) {
+      const canBuy = dto.canBuy ?? target.canBuy;
+      const canSell = dto.canSell ?? target.canSell;
+      if (!canBuy && !canSell) {
+        throw new BadRequestException('A user must be able to buy, sell, or both');
+      }
+    }
+
+    const user = await this.usersRepo.updateById(id, { $set: dto });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
   }
 
   async findByResetToken(hashedToken: string): Promise<UserDocument | null> {

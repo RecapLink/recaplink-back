@@ -66,11 +66,11 @@ export class ChatbotService {
     if (msg.includes('badge'))
       return "Les badges sont attribués automatiquement selon votre activité (kg collectés, offres complétées) ou manuellement par l'administrateur.";
     if (msg.includes('inscription') || msg.includes('compte'))
-      return "Pour créer un compte, cliquez sur 'Inscrivez-vous' sur la page de connexion et choisissez votre rôle (Collecteur, Recycleur ou Vendeur Plastique).";
+      return "Pour créer un compte, cliquez sur 'Inscrivez-vous' sur la page de connexion. Vous pourrez ensuite acheter, vendre, ou les deux.";
     if (msg.includes('prix') || msg.includes('tarif'))
       return "Les prix sont fixés par les vendeurs lors de la création d'une offre. Vous pouvez aussi choisir de proposer vos plastiques gratuitement.";
     if (msg.includes('contact') || msg.includes('email'))
-      return "Pour nous contacter: support@recaplink.tn ou utilisez la messagerie intégrée pour contacter directement les collecteurs.";
+      return "Pour nous contacter: support@recaplink.tn ou utilisez la messagerie intégrée pour contacter directement les vendeurs.";
     if (msg.includes('plastique') || msg.includes('pet') || msg.includes('hdpe'))
       return "RecapLink accepte tous types de plastiques: PET (bouteilles), HDPE (bidons), PP (emballages), PVC et autres. Chaque offre précise le type de plastique concerné.";
     return "Merci pour votre question ! Je suis là pour vous aider avec RecapLink. Pouvez-vous préciser votre demande ? Vous pouvez aussi consulter notre section Savoir-faire pour plus d'informations.";

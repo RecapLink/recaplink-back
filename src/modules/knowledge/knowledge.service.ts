@@ -202,7 +202,7 @@ export class KnowledgeService {
     });
 
     await this.notificationsService.notifyRoles({
-      roles: [Role.COLLECTEUR, Role.RECYCLEUR],
+      roles: [Role.USER],
       type: 'article_published',
       title: 'Nouvel article disponible',
       message: `${item.title?.fr || slug} est maintenant disponible`,

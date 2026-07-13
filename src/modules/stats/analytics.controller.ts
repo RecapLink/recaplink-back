@@ -36,7 +36,7 @@ export class AnalyticsController {
   }
 
   @Get('plastic-distribution')
-  @Roles(Role.COLLECTEUR, Role.RECYCLEUR, Role.VENDEUR_PLASTIQUE, Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.USER, Role.ADMIN, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Plastic type distribution across all offers' })
   @ApiResponse({ status: 200, description: 'Plastic distribution percentages', type: [PlasticDistributionItemDto] })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

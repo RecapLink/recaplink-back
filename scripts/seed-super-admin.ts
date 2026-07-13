@@ -39,12 +39,12 @@ async function main() {
 
   const User = mongoose.model('User', UserSchema);
 
-  const email = 'admin@recap.tn';
+  const email = 'admin@ufuk.tn';
   const password = 'admin12';
 
-  const existing = await User.findOne({ email });
-  if (existing) {
-    console.log(`Super admin already exists: ${email}`);
+  const existingCount = await User.countDocuments({ role: 'super_admin' });
+  if (existingCount > 0) {
+    console.log('A Super Admin already exists — refusing to create a second one.');
     await mongoose.disconnect();
     return;
   }

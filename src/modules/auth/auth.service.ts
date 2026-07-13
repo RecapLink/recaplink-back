@@ -35,14 +35,13 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const user = await this.usersService.create(dto);
+    const user = await this.usersService.create({ ...dto, role: Role.USER });
 
-    const type = user.role === Role.RECYCLEUR ? 'new_recycleur' : user.role === Role.COLLECTEUR ? 'new_collecteur' : 'new_user';
     await this.notificationsService.notifyAdmins({
-      type,
-      title: user.role === Role.RECYCLEUR ? 'Nouveau recycleur' : user.role === Role.COLLECTEUR ? 'Nouveau collecteur' : 'Nouvelle inscription',
+      type: 'new_user',
+      title: 'Nouvelle inscription',
       message: `${user.fullName} attend une approbation`,
-      link: user.role === Role.RECYCLEUR ? '/admin/recyclers' : '/admin/collectors',
+      link: '/admin/users',
       prefKey: 'newInscription',
       metadata: { userId: user._id.toString() },
     });
@@ -53,6 +52,7 @@ export class AuthService {
   async login(dto: LoginDto): Promise<{ accessToken: string; refreshToken: string; user: UserDocument }> {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (user.isDeleted) throw new UnauthorizedException('Invalid credentials');
 
     const passwordMatch = await bcrypt.compare(dto.password, user.password);
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');

@@ -14,9 +14,7 @@ import { MessagingService } from './messaging.service';
 
 /** Maps a user role to the Socket.IO room used for role-wide broadcasts. */
 const ROOM_BY_ROLE: Record<string, string> = {
-  collecteur: 'collectors',
-  recycleur: 'recyclers',
-  vendeur_plastique: 'sellers',
+  user: 'users',
   admin: 'super-admins',
   super_admin: 'super-admins',
 };

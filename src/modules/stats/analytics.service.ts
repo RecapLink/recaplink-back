@@ -28,10 +28,16 @@ export class AnalyticsService {
       activeOffers,
       offersThisMonth,
       offersLastMonth,
-      activeCollectors,
-      newCollectors,
-      activeRecyclers,
-      newRecyclers,
+      activeBuyers,
+      newBuyers,
+      activeSellers,
+      newSellers,
+      totalUsers,
+      professionalUsers,
+      individualUsers,
+      verifiedUsers,
+      suspendedUsers,
+      newUsersThisMonth,
       plasticTypes,
       kgThisMonthAgg,
       kgLastMonthAgg,
@@ -39,10 +45,16 @@ export class AnalyticsService {
       this.offerModel.countDocuments({ status: 'active' }),
       this.offerModel.countDocuments({ createdAt: { $gte: startOfMonth } }),
       this.offerModel.countDocuments({ createdAt: { $gte: startOfLastMonth, $lt: startOfMonth } }),
-      this.userModel.countDocuments({ role: 'collecteur', status: 'active' }),
-      this.userModel.countDocuments({ role: 'collecteur', status: 'active', createdAt: { $gte: startOfMonth } }),
-      this.userModel.countDocuments({ role: 'recycleur', status: 'active' }),
-      this.userModel.countDocuments({ role: 'recycleur', status: 'active', createdAt: { $gte: startOfMonth } }),
+      this.userModel.countDocuments({ canBuy: true, status: 'active', isDeleted: { $ne: true } }),
+      this.userModel.countDocuments({ canBuy: true, status: 'active', isDeleted: { $ne: true }, createdAt: { $gte: startOfMonth } }),
+      this.userModel.countDocuments({ canSell: true, status: 'active', isDeleted: { $ne: true } }),
+      this.userModel.countDocuments({ canSell: true, status: 'active', isDeleted: { $ne: true }, createdAt: { $gte: startOfMonth } }),
+      this.userModel.countDocuments({ isDeleted: { $ne: true } }),
+      this.userModel.countDocuments({ legalStatus: 'professionnel', isDeleted: { $ne: true } }),
+      this.userModel.countDocuments({ legalStatus: 'particulier', isDeleted: { $ne: true } }),
+      this.userModel.countDocuments({ verified: true, isDeleted: { $ne: true } }),
+      this.userModel.countDocuments({ status: 'suspended', isDeleted: { $ne: true } }),
+      this.userModel.countDocuments({ isDeleted: { $ne: true }, createdAt: { $gte: startOfMonth } }),
       this.offerModel.aggregate([
         { $match: { status: { $in: ['active', 'verified', 'closed'] } } },
         { $group: { _id: '$plasticType', count: { $sum: 1 }, totalKg: { $sum: '$quantityKg' } } },
@@ -83,10 +95,16 @@ export class AnalyticsService {
       activeOffers,
       offersThisMonth,
       offersTrend,
-      activeCollectors,
-      newCollectorsThisMonth: newCollectors,
-      activeRecyclers,
-      newRecyclersThisMonth: newRecyclers,
+      activeBuyers,
+      newBuyersThisMonth: newBuyers,
+      activeSellers,
+      newSellersThisMonth: newSellers,
+      totalUsers,
+      professionalUsers,
+      individualUsers,
+      verifiedUsers,
+      suspendedUsers,
+      newUsersThisMonth,
       plasticTypeDistribution,
     };
   }
@@ -111,10 +129,10 @@ export class AnalyticsService {
     const [recentUsers, recentOffers, recentBadgeAwards, recentKnowledge, recentReports] =
       await Promise.all([
         this.userModel
-          .find({ role: { $in: ['collecteur', 'recycleur'] } })
+          .find({ role: 'user' })
           .sort({ createdAt: -1 })
           .limit(6)
-          .select('fullName role zone city createdAt')
+          .select('fullName role zone city canBuy canSell createdAt')
           .lean(),
         this.offerModel
           .find()
@@ -144,12 +162,15 @@ export class AnalyticsService {
       ]);
 
     const events: Array<{ type: string; title: string; sub: string; createdAt: Date }> = [
-      ...recentUsers.map((u: any) => ({
-        type: u.role === 'collecteur' ? 'user_registration_collector' : 'user_registration_recycler',
-        title: `Nouveau ${u.role} inscrit — ${u.fullName}`,
-        sub: [u.city, u.zone].filter(Boolean).join(' · ') || 'Zone non définie',
-        createdAt: u.createdAt,
-      })),
+      ...recentUsers.map((u: any) => {
+        const capabilities = u.canBuy && u.canSell ? 'Achat & Vente' : u.canBuy ? 'Achat' : u.canSell ? 'Vente' : 'Aucune capacité';
+        return {
+          type: 'user_registration',
+          title: `Nouvel utilisateur inscrit — ${u.fullName}`,
+          sub: `${[u.city, u.zone].filter(Boolean).join(' · ') || 'Zone non définie'} · ${capabilities}`,
+          createdAt: u.createdAt,
+        };
+      }),
       ...recentOffers.map((o: any) => ({
         type: 'new_offer',
         title: `Nouvelle offre — ${o.title}`,
@@ -216,7 +237,7 @@ export class AnalyticsService {
     // Fallback to user-based if no offer data
     if (results.length === 0) {
       return this.userModel.aggregate([
-        { $match: { role: 'collecteur', zone: { $exists: true, $ne: '' } } },
+        { $match: { canSell: true, zone: { $exists: true, $ne: '' } } },
         { $group: { _id: '$zone', totalKg: { $sum: '$totalKgCollected' } } },
         { $sort: { totalKg: -1 } },
         { $limit: 10 },

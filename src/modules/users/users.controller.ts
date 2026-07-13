@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Delete,
   Param,
@@ -11,7 +12,9 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -27,8 +30,14 @@ import { Types } from 'mongoose';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Post()
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  create(@Body() dto: CreateUserDto, @CurrentUser('role') requesterRole: Role) {
+    return this.usersService.create(dto, requesterRole);
+  }
+
   @Get()
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   findAll(@Query() query: UserQueryDto) {
     return this.usersService.findAll(query);
   }
@@ -53,8 +62,18 @@ export class UsersController {
     );
   }
 
+  @Patch(':id/admin')
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  adminUpdate(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Body() dto: AdminUpdateUserDto,
+    @CurrentUser('role') requesterRole: Role,
+  ) {
+    return this.usersService.adminUpdate(id.toString(), dto, requesterRole);
+  }
+
   @Patch(':id/status')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   updateStatus(
     @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
     @Body('status') status: UserStatus,
@@ -64,7 +83,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id', ParseObjectIdPipe) id: Types.ObjectId, @CurrentUser('sub') adminId: string) {
     return this.usersService.remove(id.toString(), adminId);

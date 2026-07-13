@@ -31,26 +31,44 @@ export class OverviewDto {
   offersTrend: number;
 
   @ApiProperty({ example: 84 })
-  activeCollectors: number;
+  activeBuyers: number;
 
   @ApiProperty({ example: 5 })
-  newCollectorsThisMonth: number;
+  newBuyersThisMonth: number;
 
   @ApiProperty({ example: 150 })
-  activeRecyclers: number;
+  activeSellers: number;
 
   @ApiProperty({ example: 30 })
-  newRecyclersThisMonth: number;
+  newSellersThisMonth: number;
+
+  @ApiProperty({ example: 234 })
+  totalUsers: number;
+
+  @ApiProperty({ example: 62 })
+  professionalUsers: number;
+
+  @ApiProperty({ example: 172 })
+  individualUsers: number;
+
+  @ApiProperty({ example: 190 })
+  verifiedUsers: number;
+
+  @ApiProperty({ example: 8 })
+  suspendedUsers: number;
+
+  @ApiProperty({ example: 21 })
+  newUsersThisMonth: number;
 
   @ApiProperty({ type: [PlasticTypeItemDto] })
   plasticTypeDistribution: PlasticTypeItemDto[];
 }
 
 export class ActivityItemDto {
-  @ApiProperty({ example: 'user_registration_collector' })
+  @ApiProperty({ example: 'user_registration_seller' })
   type: string;
 
-  @ApiProperty({ example: 'Nouveau collecteur inscrit — Khaled M.' })
+  @ApiProperty({ example: 'Nouveau vendeur inscrit — Khaled M.' })
   title: string;
 
   @ApiProperty({ example: 'Sfax · Plastiques PET & HDPE' })

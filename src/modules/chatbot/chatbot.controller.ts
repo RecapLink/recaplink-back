@@ -50,7 +50,7 @@ export class ChatbotController {
         a: "Allez dans Offres → Publier une offre et remplissez le formulaire.",
       },
       {
-        q: "Comment contacter un collecteur ?",
+        q: "Comment contacter un vendeur ?",
         a: "Cliquez sur 'Collecter' sur une offre pour envoyer un message.",
       },
       {
