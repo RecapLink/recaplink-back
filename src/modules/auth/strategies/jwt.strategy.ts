@@ -19,6 +19,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (payload.status === UserStatus.SUSPENDED) {
       throw new UnauthorizedException('Account suspended');
     }
-    return { sub: payload.sub, role: payload.role, status: payload.status };
+    return { sub: payload.sub, role: payload.role, status: payload.status, sid: payload.sid };
   }
 }

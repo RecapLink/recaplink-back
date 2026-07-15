@@ -50,6 +50,25 @@ export class EmailService {
     }
   }
 
+  async sendNotificationEmail(opts: { to: string; fullName: string; title: string; message: string; link?: string }): Promise<void> {
+    const { to, fullName, title, message, link } = opts;
+    const from = this.config.get<string>('MAIL_FROM') ?? 'noreply@recap.tn';
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173';
+    const url = link ? `${frontendUrl}${link}` : frontendUrl;
+
+    try {
+      await this.transporter.sendMail({
+        from: `RecapLink <${from}>`,
+        to,
+        subject: title,
+        html: `<p>Bonjour ${fullName},</p><p>${message}</p><p><a href="${url}">Voir sur RecapLink</a></p>`,
+        text: `Bonjour ${fullName},\n\n${message}\n\n${url}`,
+      });
+    } catch (err) {
+      this.logger.error(`Failed to send notification email to ${to}: ${(err as Error).message}`);
+    }
+  }
+
   private buildResetEmailHtml(opts: { fullName: string; resetUrl: string; expiresInMinutes: number }): string {
     const { fullName, resetUrl, expiresInMinutes } = opts;
     return `<!DOCTYPE html>

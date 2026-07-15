@@ -1,19 +1,23 @@
 import {
   Controller, Post, Delete, Param, Query,
-  UploadedFile, UseInterceptors, UseGuards,
+  UploadedFile, UseInterceptors, UseGuards, BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ApiTags, ApiBearerAuth, ApiConsumes, ApiBody, ApiOperation } from '@nestjs/swagger';
 import { FilesService } from './files.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { SecuritySettingsService } from '../settings/security-settings.service';
 
 @ApiTags('Files')
 @ApiBearerAuth('access-token')
 @Controller('files')
 @UseGuards(JwtAuthGuard)
 export class FilesController {
-  constructor(private readonly filesService: FilesService) {}
+  constructor(
+    private readonly filesService: FilesService,
+    private readonly securitySettingsService: SecuritySettingsService,
+  ) {}
 
   @ApiOperation({ summary: 'Upload a single image' })
   @ApiConsumes('multipart/form-data')
@@ -38,7 +42,23 @@ export class FilesController {
     }),
   )
   async upload(@UploadedFile() file: Express.Multer.File, @Query('folder') folder = 'recaplink') {
+    await this.assertWithinSecurityPolicy(file);
     return this.filesService.uploadFile(file, folder);
+  }
+
+  /** Enforces the admin-configurable allowed-types/max-size policy on top of Multer's hard ceiling. */
+  private async assertWithinSecurityPolicy(file: Express.Multer.File): Promise<void> {
+    if (!file) return;
+    const policy = await this.securitySettingsService.getPolicy();
+    if (policy.allowedFileTypes?.length && !policy.allowedFileTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        `Type de fichier non autorisé (${file.mimetype}). Types acceptés : ${policy.allowedFileTypes.join(', ')}`,
+      );
+    }
+    const maxBytes = (policy.maxUploadSizeMb || 5) * 1024 * 1024;
+    if (file.size > maxBytes) {
+      throw new BadRequestException(`Fichier trop volumineux. Taille maximale : ${policy.maxUploadSizeMb} Mo`);
+    }
   }
 
   @ApiOperation({ summary: 'Upload a voice recording' })

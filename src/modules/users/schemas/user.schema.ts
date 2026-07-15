@@ -6,6 +6,10 @@ import { PlasticType } from '../../../common/enums/plastic-type.enum';
 import { LegalStatus } from '../../../common/enums/legal-status.enum';
 import { Language } from '../../../common/enums/language.enum';
 
+// `@Schema` + `SchemaFactory.createForClass` (not a bare class) so these nested objects are real
+// Mongoose sub-schemas — a bare class used as a `@Prop({ type })` degrades to `Mixed`, which silently
+// drops its own fields' `default`s when the parent document is created without an explicit value.
+@Schema({ _id: false })
 class NotifPrefs {
   @Prop({ default: true }) newSignalement: boolean;
   @Prop({ default: true }) newInscription: boolean;
@@ -13,6 +17,14 @@ class NotifPrefs {
   @Prop({ default: true }) rapportsHebdo: boolean;
   @Prop({ default: false }) alertePerformance: boolean;
 }
+const NotifPrefsSchema = SchemaFactory.createForClass(NotifPrefs);
+
+@Schema({ _id: false })
+class DashboardPrefs {
+  @Prop({ default: true }) soundEnabled: boolean;
+  @Prop({ default: true }) desktopNotificationsEnabled: boolean;
+}
+const DashboardPrefsSchema = SchemaFactory.createForClass(DashboardPrefs);
 
 export type UserDocument = User & Document;
 
@@ -75,17 +87,29 @@ export class User {
   @Prop({ enum: Language, default: Language.FR })
   preferredLanguage: Language;
 
+  @Prop({ trim: true })
+  timezone: string;
+
+  @Prop({ trim: true })
+  position: string;
+
   @Prop({ default: false })
   isDeleted: boolean;
 
   @Prop()
   deletedAt: Date;
 
-  @Prop()
-  refreshTokenHash: string;
-
-  @Prop({ type: NotifPrefs, default: () => ({}) })
+  @Prop({ type: NotifPrefsSchema, default: () => ({}) })
   notifPrefs: NotifPrefs;
+
+  @Prop({ type: DashboardPrefsSchema, default: () => ({}) })
+  dashboardPrefs: DashboardPrefs;
+
+  @Prop({ default: 0 })
+  failedLoginAttempts: number;
+
+  @Prop({ default: null })
+  lockedUntil: Date | null;
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Badge' }], default: [] })
   badges: Types.ObjectId[];
@@ -107,6 +131,11 @@ export class User {
 
   @Prop()
   passwordResetExpires: Date;
+
+  // Not @Prop-decorated — these paths are already added to the schema by `{ timestamps: true }`
+  // above. Declaring them as plain fields only gives TypeScript visibility into them.
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
@@ -120,7 +149,8 @@ UserSchema.index({ isDeleted: 1 });
 UserSchema.set('toJSON', {
   transform: (_doc, ret) => {
     delete ret.password;
-    delete ret.refreshTokenHash;
+    // Legacy documents from before the multi-session rework may still carry this field in storage.
+    delete (ret as unknown as Record<string, unknown>).refreshTokenHash;
     return ret;
   },
 });

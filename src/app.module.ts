@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 
 import databaseConfig from './config/database.config';
@@ -21,6 +22,9 @@ import { AnalyticsModule } from './modules/stats/analytics.module';
 import { ChatbotModule } from './modules/chatbot/chatbot.module';
 import { SiteSettingsModule } from './modules/site-settings/site-settings.module';
 import { LearningPathsModule } from './modules/learning-paths/learning-paths.module';
+import { SessionsModule } from './modules/sessions/sessions.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { SupportTicketsModule } from './modules/support-tickets/support-tickets.module';
 
 @Module({
   imports: [
@@ -49,6 +53,8 @@ import { LearningPathsModule } from './modules/learning-paths/learning-paths.mod
       }),
     }),
 
+    ScheduleModule.forRoot(),
+
     AuthModule,
     UsersModule,
     FeedbackModule,
@@ -63,6 +69,9 @@ import { LearningPathsModule } from './modules/learning-paths/learning-paths.mod
     ChatbotModule,
     SiteSettingsModule,
     LearningPathsModule,
+    SessionsModule,
+    SettingsModule,
+    SupportTicketsModule,
   ],
   providers: [
     {

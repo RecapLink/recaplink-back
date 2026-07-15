@@ -14,10 +14,10 @@ export class ChatbotController {
 
   @Post('message')
   sendMessage(
-    @Body() body: { message: string; sessionId?: string },
+    @Body() body: { message: string; sessionId?: string; language?: string },
     @CurrentUser('sub') userId: string,
   ) {
-    return this.svc.sendMessage(userId, body.message, body.sessionId);
+    return this.svc.sendMessage(userId, body.message, body.sessionId, body.language);
   }
 
   @UseGuards(RolesGuard)

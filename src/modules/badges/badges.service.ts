@@ -17,6 +17,12 @@ export class BadgesService {
     return this.badgeModel.find().lean();
   }
 
+  async findOne(id: string): Promise<BadgeDocument> {
+    const badge = await this.badgeModel.findById(new Types.ObjectId(id));
+    if (!badge) throw new NotFoundException('Badge not found');
+    return badge;
+  }
+
   async create(dto: any, adminId: string): Promise<BadgeDocument> {
     const badge = await this.badgeModel.create({
       ...dto,
@@ -81,6 +87,7 @@ export class BadgesService {
       ub = await this.userBadgeModel.create({
         badge: new Types.ObjectId(badgeId),
         user: new Types.ObjectId(userId),
+        awardedBy: adminId ?? 'manual',
       });
     } catch (err: any) {
       if (err?.code === 11000) return null; // user already has this badge

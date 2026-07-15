@@ -45,6 +45,11 @@ export const NOTIFICATION_META: Record<string, NotificationMeta> = {
   report_approved: { category: 'reports', icon: 'CheckCircle', color: '#4d9538' },
   report_rejected: { category: 'reports', icon: 'XCircle', color: '#9ca3af' },
 
+  // Support tickets (Rapports — internal support center)
+  ticket_created: { category: 'reports', icon: 'LifeBuoy', color: '#3b82f6' },
+  ticket_message: { category: 'reports', icon: 'MessageCircle', color: '#3b82f6' },
+  ticket_status_changed: { category: 'reports', icon: 'RefreshCcw', color: '#038543' },
+
   // System (generic fallback, no automated trigger wired yet — see project notes)
   system: { category: 'system', icon: 'Bell', color: '#038543' },
 };

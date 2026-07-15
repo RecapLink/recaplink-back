@@ -6,6 +6,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -18,12 +20,26 @@ import { paginate, getPaginationParams } from '../../common/utils/paginate.util'
 import { Paginated } from '../../common/types/pagination.type';
 import { Types } from 'mongoose';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SessionsService } from '../sessions/sessions.service';
+import { UpdateDashboardPrefsDto } from './dto/update-dashboard-prefs.dto';
+import { Knowledge, KnowledgeDocument } from '../knowledge/schemas/knowledge.schema';
+import { UserBadge, UserBadgeDocument } from '../badges/schemas/user-badge.schema';
+
+export interface AdminProfileStats {
+  usersManaged: number;
+  entriesCreated: number;
+  badgesAwarded: number;
+  activeDays: number;
+}
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly usersRepo: UsersRepository,
     private readonly notificationsService: NotificationsService,
+    private readonly sessionsService: SessionsService,
+    @InjectModel(Knowledge.name) private readonly knowledgeModel: Model<KnowledgeDocument>,
+    @InjectModel(UserBadge.name) private readonly userBadgeModel: Model<UserBadgeDocument>,
   ) {}
 
   async create(dto: CreateUserDto, requesterRole?: Role): Promise<UserDocument> {
@@ -152,26 +168,44 @@ export class UsersService {
     return user;
   }
 
-  async updateRefreshToken(
-    id: string | Types.ObjectId,
-    token: string | null,
-  ): Promise<void> {
-    const hash = token ? await bcrypt.hash(token, 10) : null;
-    await this.usersRepo.updateById(id, { $set: { refreshTokenHash: hash } });
+  async incrementFailedLogin(id: string | Types.ObjectId, lockAfter: number, lockMinutes: number): Promise<UserDocument | null> {
+    const user = await this.usersRepo.updateById(id, { $inc: { failedLoginAttempts: 1 } });
+    if (user && user.failedLoginAttempts >= lockAfter) {
+      const lockedUntil = new Date(Date.now() + lockMinutes * 60 * 1000);
+      return this.usersRepo.updateById(id, { $set: { lockedUntil } });
+    }
+    return user;
   }
 
-  async validateRefreshToken(
-    userId: string,
-    token: string,
-  ): Promise<UserDocument> {
-    const user = await this.usersRepo.findById(userId);
-    if (!user?.refreshTokenHash)
-      throw new ForbiddenException('Access denied');
+  async resetFailedLogin(id: string | Types.ObjectId): Promise<void> {
+    await this.usersRepo.updateById(id, { $set: { failedLoginAttempts: 0, lockedUntil: null } });
+  }
 
-    const isValid = await bcrypt.compare(token, user.refreshTokenHash);
-    if (!isValid) throw new ForbiddenException('Access denied');
-
+  async updateDashboardPrefs(id: string, dto: UpdateDashboardPrefsDto): Promise<UserDocument> {
+    const user = await this.usersRepo.updateById(id, { $set: { dashboardPrefs: dto } });
+    if (!user) throw new NotFoundException('User not found');
     return user;
+  }
+
+  /** Real, backend-computed profile KPIs for the current admin — no mock/random data. */
+  async getMyStats(id: string): Promise<AdminProfileStats> {
+    const user = await this.findById(id);
+
+    const [usersManaged, entriesCreated, badgesAwarded] = await Promise.all([
+      this.notificationsService.countDistinctManagedUsers(id),
+      this.knowledgeModel.countDocuments({ author: new Types.ObjectId(id) }),
+      this.userBadgeModel.countDocuments({ awardedBy: id }),
+    ]);
+
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const activeDays = Math.max(1, Math.floor((Date.now() - user.createdAt.getTime()) / msPerDay) + 1);
+
+    return { usersManaged, entriesCreated, badgesAwarded, activeDays };
+  }
+
+  /** Recent actions this admin performed, for the profile activity timeline. */
+  async getMyActivity(id: string, limit = 20) {
+    return this.notificationsService.findRecentByCreator(id, limit);
   }
 
   async remove(id: string, adminId: string): Promise<void> {
@@ -255,9 +289,8 @@ export class UsersService {
 
   async updatePassword(id: string | Types.ObjectId, newPassword: string): Promise<void> {
     const hash = await bcrypt.hash(newPassword, 10);
-    await this.usersRepo.updateById(id, {
-      $set: { password: hash },
-      $unset: { refreshTokenHash: '' },
-    });
+    await this.usersRepo.updateById(id, { $set: { password: hash } });
+    // Force re-login on every device after a password change/reset
+    await this.sessionsService.revokeAllExcept(id.toString());
   }
 }

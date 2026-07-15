@@ -80,4 +80,12 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(Language)
   preferredLanguage?: Language;
+
+  @IsOptional()
+  @IsString()
+  timezone?: string;
+
+  @IsOptional()
+  @IsString()
+  position?: string;
 }

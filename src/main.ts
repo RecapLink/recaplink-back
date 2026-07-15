@@ -55,6 +55,9 @@ async function bootstrap() {
     .addTag('Auth', 'Authentication endpoints')
     .addTag('Users', 'User management')
     .addTag('Offers', 'Plastic offer management')
+    .addTag('Settings', 'Global platform settings (localization, security, notifications, chatbot, badge engine)')
+    .addTag('Sessions', "A user's connected devices / login history")
+    .addTag('Support Tickets', 'Internal support center for Admins/Super Admins')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

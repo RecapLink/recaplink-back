@@ -42,6 +42,13 @@ export class NotificationsRepository {
     return admins.map(a => a._id);
   }
 
+  async findAdminEmails(prefKey?: string, excludeUserId?: string): Promise<{ email: string; fullName: string }[]> {
+    const filter: Record<string, unknown> = { role: { $in: [Role.ADMIN, Role.SUPER_ADMIN] } };
+    if (prefKey) filter[`notifPrefs.${prefKey}`] = { $ne: false };
+    if (excludeUserId) filter._id = { $ne: new Types.ObjectId(excludeUserId) };
+    return this.userModel.find(filter).select('email fullName').lean();
+  }
+
   async findByRoles(roles: string[], excludeUserId?: string): Promise<Types.ObjectId[]> {
     const filter: Record<string, unknown> = { role: { $in: roles } };
     if (excludeUserId) filter._id = { $ne: new Types.ObjectId(excludeUserId) };
@@ -75,5 +82,21 @@ export class NotificationsRepository {
 
   async deleteOne(id: Types.ObjectId, recipientId: Types.ObjectId): Promise<void> {
     await this.model.deleteOne({ _id: id, recipient: recipientId });
+  }
+
+  /** Recent actions performed BY this admin (as the actor, not the recipient) — powers the profile activity timeline. */
+  async findRecentByCreator(creatorId: Types.ObjectId, limit: number) {
+    return this.model
+      .find({ createdBy: creatorId })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+  }
+
+  /** Distinct users this admin has directly acted on (verify/suspend/reactivate/update/delete) — powers the "users managed" KPI. */
+  async countDistinctManagedUsers(creatorId: Types.ObjectId): Promise<number> {
+    const types = ['user_verified', 'user_suspended', 'user_reactivated', 'user_updated', 'user_deleted'];
+    const ids = await this.model.distinct('metadata.userId', { createdBy: creatorId, type: { $in: types } });
+    return ids.length;
   }
 }
