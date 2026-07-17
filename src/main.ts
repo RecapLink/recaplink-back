@@ -21,9 +21,23 @@ async function bootstrap() {
   fs.mkdirSync(uploadsDir, { recursive: true });
   app.use('/api/uploads', express.static(uploadsDir));
 
-  const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+  // `FRONTEND_URL` may hold a comma-separated list (e.g. both the apex and `www` domains).
+  // `credentials: true` (needed for the httpOnly refresh_token cookie) means the response can
+  // never send `Access-Control-Allow-Origin: *` — browsers reject that combination outright —
+  // so every allowed origin must be listed explicitly instead.
+  const configuredOrigins = (process.env.FRONTEND_URL ?? '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
+  const allowedOrigins = [
+    ...configuredOrigins,
+    'https://recaplink.tn',
+    'https://www.recaplink.tn',
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ];
   app.enableCors({
-    origin: [frontendUrl, 'http://localhost:3000'],
+    origin: [...new Set(allowedOrigins)],
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language'],
